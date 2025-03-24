@@ -10,15 +10,36 @@
     "Other"
   ],
   "activationEvents": [
-    "workspaceContains: **/*.cs",
-    "workspaceContains: **/*.razor"
+    "workspaceContains:**/*.cs",
+    "workspaceContains:**/*.cshtml",
+    "workspaceContains:**/*.razor"
   ],
   "main": "./out/index.js",
   "contributes": {
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "explorerResourceIsFolder",
+          "submenu": "csharpfilecreator",
+          "group": "navigation"
+        }
+      ],
+      "csharpfilecreator": [
+        {
+          "command": "csharpfilecreator.helloWorld"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "csharpfilecreator",
+        "label": "C# New File"
+      }
+    ],
     "commands": [
       {
-        "command": "csharpfilecreator.helloWorld",
-        "title": "Hello World"
+        "title": "hello",
+        "command": "csharpfilecreator.helloWorld"
       }
     ]
   },
