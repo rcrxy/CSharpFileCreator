@@ -18,7 +18,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage("Hello World from CsharpFileCreator!");
     });
 
-    context.subscriptions.push(disposable);
+    const watcher = vscode.workspace.createFileSystemWatcher("**/*.{cs,razor,cshtml}");
+
+    context.subscriptions.push(disposable, watcher);
 }
 
 // This method is called when your extension is deactivated
