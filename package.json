@@ -1,4 +1,6 @@
 {
+
+
   "name": "csharpfilecreator",
   "displayName": "C# File Creator",
   "description": "Quickly Create C# Files via the Right-Click Menu.",
@@ -15,34 +17,6 @@
     "workspaceContains:**/*.razor"
   ],
   "main": "./out/index.js",
-  "contributes": {
-    "menus": {
-      "explorer/context": [
-        {
-          "when": "explorerResourceIsFolder",
-          "submenu": "csharpfilecreator",
-          "group": "navigation"
-        }
-      ],
-      "csharpfilecreator": [
-        {
-          "command": "csharpfilecreator.helloWorld"
-        }
-      ]
-    },
-    "submenus": [
-      {
-        "id": "csharpfilecreator",
-        "label": "C# New File"
-      }
-    ],
-    "commands": [
-      {
-        "title": "hello",
-        "command": "csharpfilecreator.helloWorld"
-      }
-    ]
-  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
@@ -52,14 +26,46 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.98.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.98.0",
     "@typescript-eslint/eslint-plugin": "^8.25.0",
     "@typescript-eslint/parser": "^8.25.0",
-    "eslint": "^9.21.0",
-    "typescript": "^5.7.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.21.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "vscode-nls": "^5.2.0"
+  },
+  "contributes": {
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "explorerResourceIsFolder",
+          "submenu": "csharpfilecreator",
+          "group": "navigation@5"
+        }
+      ],
+      "csharpfilecreator": [
+        {
+          "command": "csharpfilecreator.class"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "csharpfilecreator",
+        "label": "%newfile%"
+      }
+    ],
+    "commands": [
+      {
+        "title": "%class%",
+        "shortTitle": "Class",
+        "command": "csharpfilecreator.class"
+      }
+    ]
   }
 }
