@@ -1,4 +1,13 @@
 {
-    "newfile": "New File(C#)",
-    "class": "Class"
+    "newfile": "New C# File",
+    "class": "Class",
+    "interface": "Interface",
+    "record": "Record",
+    "struct": "Struct",
+    "enum": "Enum",
+    "abstractClass": "Abstract Class",
+    "staticClass": "Static Class",
+    "newRazorFile": "New Razor File",
+    "razorComponent": "Razor Component",
+    "razorComponentFiles": "Razor Component with Code-Behind and CSS"
 }

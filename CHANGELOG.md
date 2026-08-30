@@ -1,9 +1,5 @@
-# Change Log
+## [0.0.1] - 2026-08-30
 
-All notable changes to the "csharpfilecreator" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
-- Initial release
+- Add C# file templates.
+- Add Razor single-file and three-file templates.
+- Add namespace and language-version awareness.

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">C# File Creator</title>
+  <desc id="desc">A code document marked C sharp with a plus badge</desc>
+  <rect width="256" height="256" rx="48" fill="#512BD4"/>
+  <path d="M62 38h91l41 41v122c0 10-8 18-18 18H62c-10 0-18-8-18-18V56c0-10 8-18 18-18Z" fill="#F8F6FF"/>
+  <path d="M153 38v31c0 8 6 14 14 14h27Z" fill="#D2C8F4"/>
+  <path d="M78 104h82M78 132h54M78 188h45" fill="none" stroke="#A08BE8" stroke-width="10" stroke-linecap="round"/>
+  <rect x="66" y="145" width="105" height="42" rx="10" fill="#6846DA"/>
+  <text x="118.5" y="176" fill="#FFFFFF" font-family="Consolas, 'Courier New', monospace" font-size="31" font-weight="700" text-anchor="middle">C#</text>
+  <circle cx="193" cy="193" r="42" fill="#8B6BE8" stroke="#3B218F" stroke-width="8"/>
+  <path d="M193 174v38M174 193h38" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+</svg>

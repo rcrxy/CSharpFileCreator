@@ -1,71 +1,144 @@
 {
-
-
-  "name": "csharpfilecreator",
-  "displayName": "C# File Creator",
-  "description": "Quickly Create C# Files via the Right-Click Menu.",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.98.0"
-  },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "workspaceContains:**/*.cs",
-    "workspaceContains:**/*.cshtml",
-    "workspaceContains:**/*.razor"
-  ],
-  "main": "./out/index.js",
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.98.0",
-    "@typescript-eslint/eslint-plugin": "^8.25.0",
-    "@typescript-eslint/parser": "^8.25.0",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.21.0",
-    "typescript": "^5.7.3"
-  },
-  "dependencies": {
-    "vscode-nls": "^5.2.0"
-  },
-  "contributes": {
-    "menus": {
-      "explorer/context": [
-        {
-          "when": "explorerResourceIsFolder",
-          "submenu": "csharpfilecreator",
-          "group": "navigation@5"
-        }
-      ],
-      "csharpfilecreator": [
-        {
-          "command": "csharpfilecreator.class"
-        }
-      ]
+    "name": "csharpfilecreator",
+    "displayName": "C# File Creator",
+    "description": "Quickly Create C# Files via the Right-Click Menu.",
+    "version": "0.0.1",
+    "publisher": "zeco",
+    "author": "zeco",
+    "license": "MIT",
+    "icon": "assets/icon.png",
+    "engines": {
+        "vscode": "^1.98.0"
     },
-    "submenus": [
-      {
-        "id": "csharpfilecreator",
-        "label": "%newfile%"
-      }
+    "categories": [
+        "Other"
     ],
-    "commands": [
-      {
-        "title": "%class%",
-        "shortTitle": "Class",
-        "command": "csharpfilecreator.class"
-      }
-    ]
-  }
+    "activationEvents": [
+        "workspaceContains:**/*.cs",
+        "workspaceContains:**/*.cshtml",
+        "workspaceContains:**/*.razor",
+        "workspaceContains:**/*.csproj",
+        "workspaceContains:**/*.sln",
+        "workspaceContains:**/*.slnx",
+        "workspaceContains:**/*.slnf"
+    ],
+    "main": "./out/index.js",
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src",
+        "test": "vscode-test"
+    },
+    "devDependencies": {
+        "@types/mocha": "^10.0.10",
+        "@types/node": "20.x",
+        "@types/vscode": "^1.98.0",
+        "@typescript-eslint/eslint-plugin": "^8.25.0",
+        "@typescript-eslint/parser": "^8.25.0",
+        "@vscode/test-cli": "^0.0.10",
+        "@vscode/test-electron": "^2.4.1",
+        "eslint": "^9.21.0",
+        "mocha": "^11.8.0",
+        "typescript": "^5.7.3",
+        "vsce": "^2.15.0"
+    },
+    "dependencies": {
+        "fast-xml-parser": "^5.11.1",
+        "vscode-nls": "^5.2.0"
+    },
+    "contributes": {
+        "menus": {
+            "explorer/context": [
+                {
+                    "when": "explorerResourceIsFolder",
+                    "submenu": "csharpfilecreator.newCSharpFile",
+                    "group": "navigation@5"
+                }
+            ],
+            "csharpfilecreator.newCSharpFile": [
+                {
+                    "command": "csharpfilecreator.newClass",
+                    "group": "templates@1"
+                },
+                {
+                    "command": "csharpfilecreator.newInterface",
+                    "group": "templates@2"
+                },
+                {
+                    "command": "csharpfilecreator.newRecord",
+                    "group": "templates@3"
+                },
+                {
+                    "command": "csharpfilecreator.newStruct",
+                    "group": "templates@4"
+                },
+                {
+                    "command": "csharpfilecreator.newEnum",
+                    "group": "templates@5"
+                },
+                {
+                    "command": "csharpfilecreator.newAbstractClass",
+                    "group": "templates@6"
+                },
+                {
+                    "command": "csharpfilecreator.newStaticClass",
+                    "group": "templates@7"
+                },
+                {
+                    "command": "csharpfilecreator.newRazorComponent",
+                    "group": "templatesRazor@1"
+                },
+                {
+                    "command": "csharpfilecreator.newRazorComponentFiles",
+                    "group": "templatesRazor@2"
+                }
+            ]
+        },
+        "submenus": [
+            {
+                "id": "csharpfilecreator.newCSharpFile",
+                "label": "%newfile%"
+            }
+        ],
+        "commands": [
+            {
+                "title": "%class%",
+                "command": "csharpfilecreator.newClass"
+            },
+            {
+                "title": "%interface%",
+                "command": "csharpfilecreator.newInterface"
+            },
+            {
+                "title": "%record%",
+                "command": "csharpfilecreator.newRecord"
+            },
+            {
+                "title": "%struct%",
+                "command": "csharpfilecreator.newStruct"
+            },
+            {
+                "title": "%enum%",
+                "command": "csharpfilecreator.newEnum"
+            },
+            {
+                "title": "%abstractClass%",
+                "command": "csharpfilecreator.newAbstractClass"
+            },
+            {
+                "title": "%staticClass%",
+                "command": "csharpfilecreator.newStaticClass"
+            },
+            {
+                "title": "%razorComponent%",
+                "command": "csharpfilecreator.newRazorComponent"
+            },
+            {
+                "title": "%razorComponentFiles%",
+                "command": "csharpfilecreator.newRazorComponentFiles"
+            }
+        ]
+    }
 }

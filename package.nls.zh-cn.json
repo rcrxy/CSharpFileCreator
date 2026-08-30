@@ -1,4 +1,13 @@
 {
-    "newfile": "新建文件(C#)",
-    "class": "类(Class)"
+    "newfile": "新建 C# 文件",
+    "class": "类 (Class)",
+    "interface": "接口 (Interface)",
+    "record": "记录 (Record)",
+    "struct": "结构 (Struct)",
+    "enum": "枚举 (Enum)",
+    "abstractClass": "抽象类 (Abstract Class)",
+    "staticClass": "静态类 (Static Class)",
+    "newRazorFile": "新建 Razor 文件",
+    "razorComponent": "Razor 组件",
+    "razorComponentFiles": "Razor 组件（代码后置和 CSS）"
 }
