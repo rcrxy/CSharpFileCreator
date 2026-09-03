@@ -1,4 +1,12 @@
-import type { IndentationOptions } from "../../../core/editorConfig";
+import type { Charset, IndentationOptions, LineEnding } from "../../../core/editorConfig";
+
+export interface RazorFormattingOptions {
+    readonly indentation: IndentationOptions;
+    readonly lineEnding: LineEnding;
+    readonly insertFinalNewline: boolean;
+    readonly trimTrailingWhitespace: boolean;
+    readonly charset: Charset;
+}
 
 const voidElementNames = new Set([
     "area",
@@ -45,14 +53,47 @@ interface BraceScanResult {
     readonly sawOpeningBrace: boolean;
 }
 
-export function formatRazorMarkup(source: string, indentation: IndentationOptions): string {
-    const separators = source.match(/\r\n|\n|\r/g) ?? [];
-    const lines = source.split(/\r\n|\n|\r/);
-    const formattedLines = formatLines(lines, indentation);
+interface MultilineOpeningTagState {
+    readonly name: string;
+}
 
-    return formattedLines.reduce((result, line, index) => {
+export function formatRazorMarkup(source: string, options: RazorFormattingOptions): string {
+    const normalizedLineEnding = options.lineEnding;
+    const normalizedSource = normalizeLineEndings(source, normalizedLineEnding);
+    const sourceWithTrailingWhitespace = options.trimTrailingWhitespace
+        ? normalizedSource.replace(/[ \t]+(?=\r\n|\n|\r|$)/g, "")
+        : normalizedSource;
+    const separators = sourceWithTrailingWhitespace.match(/\r\n|\n|\r/g) ?? [];
+    const lines = sourceWithTrailingWhitespace.split(/\r\n|\n|\r/);
+    const formattedLines = formatLines(lines, options.indentation);
+    const formatted = formattedLines.reduce((result, line, index) => {
         return result + line + (separators[index] ?? "");
     }, "");
+
+    const finalDocument =
+        options.insertFinalNewline && !formatted.endsWith(normalizedLineEnding)
+            ? `${formatted}${normalizedLineEnding}`
+            : !options.insertFinalNewline && formatted.endsWith(normalizedLineEnding)
+              ? formatted.replace(new RegExp(`${escapeRegExp(normalizedLineEnding)}+$`), "")
+              : formatted;
+
+    if (options.charset === "utf-8-bom" && !finalDocument.startsWith("\uFEFF")) {
+        return `\uFEFF${finalDocument}`;
+    }
+
+    if (options.charset !== "utf-8-bom" && finalDocument.startsWith("\uFEFF")) {
+        return finalDocument.slice(1);
+    }
+
+    return finalDocument;
+}
+
+function normalizeLineEndings(source: string, lineEnding: LineEnding): string {
+    return source.replace(/\r\n|\n|\r/g, lineEnding);
+}
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function formatLines(lines: readonly string[], indentation: IndentationOptions): string[] {
@@ -64,9 +105,28 @@ function formatLines(lines: readonly string[], indentation: IndentationOptions):
     let inHtmlComment = false;
     let protectedElementName: string | undefined;
     let codeBlock: RazorCodeBlockState | undefined;
+    let multilineOpeningTag: MultilineOpeningTagState | undefined;
 
     for (const line of lines) {
         const trimmedLine = line.trim();
+
+        if (multilineOpeningTag) {
+            if (trimmedLine.length === 0) {
+                result.push(line);
+                continue;
+            }
+
+            result.push(baseIndent + indentUnit.repeat(markupStack.length + 1) + trimmedLine);
+
+            const tagEnd = findTagEnd(trimmedLine, 0);
+            if (tagEnd >= 0) {
+                if (!isSelfClosingTagLine(trimmedLine, tagEnd)) {
+                    markupStack.push(multilineOpeningTag.name);
+                }
+                multilineOpeningTag = undefined;
+            }
+            continue;
+        }
 
         if (codeBlock) {
             codeBlock = updateRazorCodeBlock(codeBlock, line);
@@ -138,6 +198,17 @@ function formatLines(lines: readonly string[], indentation: IndentationOptions):
 
         if (trimmedLine.length === 0) {
             result.push(line);
+            continue;
+        }
+
+        const multilineTagName = getMultilineOpeningTagName(trimmedLine);
+        if (multilineTagName) {
+            if (markupStack.length === 0) {
+                baseIndent = getLeadingWhitespace(line);
+            }
+
+            result.push(baseIndent + indentUnit.repeat(markupStack.length) + trimmedLine);
+            multilineOpeningTag = { name: multilineTagName };
             continue;
         }
 
@@ -325,8 +396,20 @@ function findTagEnd(line: string, start: number): number {
     return -1;
 }
 
+function getMultilineOpeningTagName(line: string): string | undefined {
+    if (findTagEnd(line, 1) >= 0) {
+        return undefined;
+    }
+
+    return /^<([A-Za-z][\w:.-]*)\b/.exec(line)?.[1];
+}
+
+function isSelfClosingTagLine(line: string, tagEnd: number): boolean {
+    return line.slice(0, tagEnd).trimEnd().endsWith("/");
+}
+
 function isFormattingBoundary(trimmedLine: string): boolean {
-    return trimmedLine.includes("@") || trimmedLine.includes("{") || trimmedLine.includes("}");
+    return trimmedLine.startsWith("@") || trimmedLine.startsWith("{") || trimmedLine.startsWith("}");
 }
 
 function getLeadingWhitespace(line: string): string {

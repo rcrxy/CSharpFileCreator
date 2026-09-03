@@ -12,6 +12,10 @@ returned by the `editorconfig` parser does not mean that Workbench implements it
 | `indent_style` | `space`, `tab`          | Selects spaces or tab characters for each indentation level.                            |
 | `indent_size`  | Positive integer, `tab` | Sets the logical indentation size. When set to `tab`, the resolved `tab_width` is used. |
 | `tab_width`    | Positive integer        | Sets the tab width and resolves the size of `indent_size = tab`.                        |
+| `end_of_line`  | `lf`, `crlf`            | Normalizes document line endings to the configured newline style.                       |
+| `insert_final_newline` | `true`, `false` | Ensures the file ends with or without a final newline.                              |
+| `trim_trailing_whitespace` | `true`, `false` | Removes trailing spaces and tabs before line breaks when enabled.               |
+| `charset` | `utf-8`, `utf-8-bom` | Adds or removes the UTF-8 BOM when formatting. Other EditorConfig charset values are parsed but do not trigger file transcoding. |
 
 These properties currently apply to Razor document formatting.
 
@@ -72,10 +76,9 @@ C# Workbench delegates EditorConfig discovery and matching to EditorConfig Core.
 Other EditorConfig and .NET code-style properties may be present in the parsed property map, but Workbench does not
 currently execute them. This includes properties such as:
 
-- `end_of_line`
-- `charset`
-- `insert_final_newline`
-- `trim_trailing_whitespace`
+- `utf-16be`
+- `utf-16le`
+- `latin1` charset transcoding
 - `dotnet_*`
 - `csharp_*`
 

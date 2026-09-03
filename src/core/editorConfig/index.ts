@@ -1,2 +1,15 @@
-export { resolveEditorConfig, resolveIndentationOptions } from "./editorConfigService";
-export type { EditorConfigFallback, IndentationOptions, IndentationStyle, WorkbenchEditorConfig } from "./models";
+export {
+    resolveEditorConfig,
+    resolveIndentationOptions,
+    resolveLineEnding,
+    resolveBoolean,
+    resolveCharset,
+} from "./editorConfigService";
+export type {
+    Charset,
+    EditorConfigFallback,
+    IndentationOptions,
+    IndentationStyle,
+    LineEnding,
+    WorkbenchEditorConfig,
+} from "./models";

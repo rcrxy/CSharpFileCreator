@@ -2,10 +2,12 @@ import * as vscode from "vscode";
 import { RazorDocumentFormattingProvider } from "./providers/razorDocumentFormattingProvider";
 
 export function registerFormattingFeature(context: vscode.ExtensionContext): void {
+    const log = vscode.window.createOutputChannel("C# Workbench", { log: true });
     const razorFormattingProvider = vscode.languages.registerDocumentFormattingEditProvider(
-        { language: "razor" },
-        new RazorDocumentFormattingProvider(),
+        [{ language: "aspnetcorerazor" }, { language: "razor" }],
+        new RazorDocumentFormattingProvider(log),
     );
 
-    context.subscriptions.push(razorFormattingProvider);
+    log.info("Formatting feature registered for ASP.NET Razor, Razor, and C# documents.");
+    context.subscriptions.push(log, razorFormattingProvider);
 }
