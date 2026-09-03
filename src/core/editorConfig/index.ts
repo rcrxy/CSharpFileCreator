@@ -1,6 +1,9 @@
 export {
     resolveEditorConfig,
     resolveCSharpIndentationOptions,
+    resolveCSharpNewLineOptions,
+    resolveCSharpSpacingOptions,
+    resolveCSharpWrappingOptions,
     resolveIndentationOptions,
     resolveLineEnding,
     resolveBoolean,
@@ -8,8 +11,13 @@ export {
 } from "./editorConfigService";
 export type {
     Charset,
+    CSharpBinaryOperatorSpacing,
     CSharpIndentationOptions,
     CSharpLabelIndentation,
+    CSharpNewLineOptions,
+    CSharpOpenBraceContext,
+    CSharpSpacingOptions,
+    CSharpWrappingOptions,
     EditorConfigFallback,
     IndentationOptions,
     IndentationStyle,

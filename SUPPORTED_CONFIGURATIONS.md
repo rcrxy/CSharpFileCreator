@@ -34,11 +34,47 @@ final newline, or the BOM.
 | `csharp_indent_case_contents_when_block` | `true`, `false`                                    | `true`                  | Indents an explicit block and its statements under a case label.                 |
 | `csharp_indent_labels`                   | `flush_left`, `one_less_than_current`, `no_change` | `one_less_than_current` | Controls indentation of ordinary statement labels.                               |
 
-The C# formatter currently rewrites leading indentation only. It does not yet format spacing, line wrapping, using
-directives, or brace placement. Both **Format Document** and **Format Selection** are supported for C# documents.
+Both **Format Document** and **Format Selection** are supported for C# documents.
 Razor `@code` and `@functions` blocks reuse the same C# formatter through the `CSharpCodeFormatter` interface.
 `registerFormattingFeature` accepts an optional `CSharpCodeFormatter` when a different implementation should be used
 for embedded Razor C# code.
+
+### C# New Lines
+
+| Property                            | Supported values                                                  | Default |
+| ----------------------------------- | ----------------------------------------------------------------- | ------- |
+| `csharp_new_line_before_open_brace` | `all`, `none`, or a comma-separated list of Roslyn brace contexts | `all`   |
+| `csharp_new_line_before_else`       | `true`, `false`                                                   | `true`  |
+| `csharp_new_line_before_catch`      | `true`, `false`                                                   | `true`  |
+| `csharp_new_line_before_finally`    | `true`, `false`                                                   | `true`  |
+
+Supported brace contexts are `accessors`, `anonymous_methods`, `anonymous_types`, `control_blocks`, `events`,
+`indexers`, `lambdas`, `local_functions`, `methods`, `object_collection_array_initializers`, `properties`, and `types`.
+
+### C# Spacing
+
+| Property                                                 | Supported values                     | Default            |
+| -------------------------------------------------------- | ------------------------------------ | ------------------ |
+| `csharp_space_after_keywords_in_control_flow_statements` | `true`, `false`                      | `true`             |
+| `csharp_space_around_binary_operators`                   | `before_and_after`, `none`, `ignore` | `before_and_after` |
+| `csharp_space_after_comma`                               | `true`, `false`                      | `true`             |
+| `csharp_space_before_comma`                              | `true`, `false`                      | `false`            |
+| `csharp_space_after_semicolon_in_for_statement`          | `true`, `false`                      | `true`             |
+| `csharp_space_before_semicolon_in_for_statement`         | `true`, `false`                      | `false`            |
+| `csharp_space_after_cast`                                | `true`, `false`                      | `false`            |
+| `csharp_space_before_colon_in_inheritance_clause`        | `true`, `false`                      | `true`             |
+| `csharp_space_after_colon_in_inheritance_clause`         | `true`, `false`                      | `true`             |
+
+### C# Wrapping And Preservation
+
+| Property                                 | Supported values | Default |
+| ---------------------------------------- | ---------------- | ------- |
+| `csharp_preserve_single_line_statements` | `true`, `false`  | `true`  |
+| `csharp_preserve_single_line_blocks`     | `true`, `false`  | `true`  |
+
+Comments, regular strings, verbatim strings, raw strings, and character literals are protected from code-style text
+transformations. The formatter is syntax-aware for the constructs listed above, but it is not a complete Roslyn syntax
+tree implementation. Unsupported or ambiguous constructs are left unchanged where possible.
 
 ### Resolution Priority
 
@@ -101,7 +137,7 @@ currently execute them. This includes properties such as:
 - `utf-16le`
 - `latin1` charset transcoding
 - `dotnet_*`
-- C# formatting properties other than the six indentation options listed above
+- C# formatting properties other than the indentation, new-line, spacing, and preservation options listed above
 
 Move a property into the applied-properties table only after a Workbench feature implements and validates its behavior.
 

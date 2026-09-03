@@ -3,8 +3,13 @@ import type * as vscode from "vscode";
 import { defaultIndentationOptions } from "./defaults";
 import type {
     Charset,
+    CSharpBinaryOperatorSpacing,
     CSharpIndentationOptions,
     CSharpLabelIndentation,
+    CSharpNewLineOptions,
+    CSharpOpenBraceContext,
+    CSharpSpacingOptions,
+    CSharpWrappingOptions,
     EditorConfigFallback,
     IndentationOptions,
     IndentationStyle,
@@ -21,11 +26,59 @@ export async function resolveEditorConfig(
     return {
         indentation: resolveIndentationOptions(properties, fallback),
         csharpIndentation: resolveCSharpIndentationOptions(properties),
+        csharpNewLines: resolveCSharpNewLineOptions(properties),
+        csharpSpacing: resolveCSharpSpacingOptions(properties),
+        csharpWrapping: resolveCSharpWrappingOptions(properties),
         lineEnding: resolveLineEnding(properties.end_of_line, fallback.lineEnding),
         insertFinalNewline: resolveBoolean(properties.insert_final_newline, fallback.insertFinalNewline, true),
         trimTrailingWhitespace: resolveBoolean(properties.trim_trailing_whitespace, fallback.trimTrailingWhitespace, false),
         charset: resolveCharset(properties.charset, fallback.charset),
         properties,
+    };
+}
+
+const csharpOpenBraceContexts = new Set<CSharpOpenBraceContext>([
+    "accessors",
+    "anonymous_methods",
+    "anonymous_types",
+    "control_blocks",
+    "events",
+    "indexers",
+    "lambdas",
+    "local_functions",
+    "methods",
+    "object_collection_array_initializers",
+    "properties",
+    "types",
+]);
+
+export function resolveCSharpNewLineOptions(properties: Readonly<Props>): CSharpNewLineOptions {
+    return {
+        beforeOpenBrace: resolveOpenBraceContexts(properties.csharp_new_line_before_open_brace),
+        beforeElse: resolveCustomBoolean(properties.csharp_new_line_before_else, true),
+        beforeCatch: resolveCustomBoolean(properties.csharp_new_line_before_catch, true),
+        beforeFinally: resolveCustomBoolean(properties.csharp_new_line_before_finally, true),
+    };
+}
+
+export function resolveCSharpSpacingOptions(properties: Readonly<Props>): CSharpSpacingOptions {
+    return {
+        afterControlFlowKeyword: resolveCustomBoolean(properties.csharp_space_after_keywords_in_control_flow_statements, true),
+        aroundBinaryOperators: resolveBinaryOperatorSpacing(properties.csharp_space_around_binary_operators),
+        afterComma: resolveCustomBoolean(properties.csharp_space_after_comma, true),
+        beforeComma: resolveCustomBoolean(properties.csharp_space_before_comma, false),
+        afterForSemicolon: resolveCustomBoolean(properties.csharp_space_after_semicolon_in_for_statement, true),
+        beforeForSemicolon: resolveCustomBoolean(properties.csharp_space_before_semicolon_in_for_statement, false),
+        afterCast: resolveCustomBoolean(properties.csharp_space_after_cast, false),
+        beforeInheritanceColon: resolveCustomBoolean(properties.csharp_space_before_colon_in_inheritance_clause, true),
+        afterInheritanceColon: resolveCustomBoolean(properties.csharp_space_after_colon_in_inheritance_clause, true),
+    };
+}
+
+export function resolveCSharpWrappingOptions(properties: Readonly<Props>): CSharpWrappingOptions {
+    return {
+        preserveSingleLineStatements: resolveCustomBoolean(properties.csharp_preserve_single_line_statements, true),
+        preserveSingleLineBlocks: resolveCustomBoolean(properties.csharp_preserve_single_line_blocks, true),
     };
 }
 
@@ -144,4 +197,29 @@ function resolveLabelIndentation(value: unknown): CSharpLabelIndentation {
     }
 
     return "one_less_than_current";
+}
+
+function resolveOpenBraceContexts(value: unknown): CSharpNewLineOptions["beforeOpenBrace"] {
+    if (typeof value !== "string") {
+        return "all";
+    }
+
+    const normalizedValue = value.trim().toLowerCase();
+    if (normalizedValue === "all" || normalizedValue === "none") {
+        return normalizedValue;
+    }
+
+    const contexts = new Set<CSharpOpenBraceContext>();
+    for (const item of normalizedValue.split(",")) {
+        const context = item.trim() as CSharpOpenBraceContext;
+        if (csharpOpenBraceContexts.has(context)) {
+            contexts.add(context);
+        }
+    }
+
+    return contexts.size > 0 ? contexts : "all";
+}
+
+function resolveBinaryOperatorSpacing(value: unknown): CSharpBinaryOperatorSpacing {
+    return value === "none" || value === "ignore" ? value : "before_and_after";
 }

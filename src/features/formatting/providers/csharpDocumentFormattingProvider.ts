@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { resolveEditorConfig, type EditorConfigFallback, type WorkbenchEditorConfig } from "../../../core/editorConfig";
 import type { CSharpCodeFormatter } from "../csharpCodeFormatter";
+import { formatCSharpCodeStyle } from "../services/csharpCodeStyleFormatter";
 import { formatCSharpIndentation } from "../services/csharpIndentationFormatter";
 import { formatDocumentText, formatSelectedText } from "../services/documentTextFormatter";
 
@@ -27,9 +28,20 @@ export class CSharpDocumentFormattingProvider
     }
 
     formatText(source: string, editorConfig: WorkbenchEditorConfig): string {
-        return formatCSharpIndentation(source, {
+        const codeStyleFormatted = this.formatCodeStyle(source, editorConfig);
+
+        return formatCSharpIndentation(codeStyleFormatted, {
             indentation: editorConfig.indentation,
             csharpIndentation: editorConfig.csharpIndentation,
+        });
+    }
+
+    private formatCodeStyle(source: string, editorConfig: WorkbenchEditorConfig): string {
+        return formatCSharpCodeStyle(source, {
+            indentation: editorConfig.indentation,
+            newLines: editorConfig.csharpNewLines,
+            spacing: editorConfig.csharpSpacing,
+            wrapping: editorConfig.csharpWrapping,
         });
     }
 
@@ -47,13 +59,12 @@ export class CSharpDocumentFormattingProvider
         }
 
         const source = document.getText();
-        const formatted = this.formatText(source, editorConfig);
         const originalSelection = document.getText(targetRange);
         const formattedSelection =
             kind === "document"
-                ? formatDocumentText(formatted, editorConfig)
+                ? formatDocumentText(this.formatText(source, editorConfig), editorConfig)
                 : formatSelectedText(
-                      getFormattedRangeText(document, formatted, targetRange),
+                      this.formatSelection(document, targetRange, source, editorConfig),
                       editorConfig.trimTrailingWhitespace,
                   );
         const changed = originalSelection !== formattedSelection;
@@ -66,6 +77,27 @@ export class CSharpDocumentFormattingProvider
 
         return changed ? [vscode.TextEdit.replace(targetRange, formattedSelection)] : [];
     }
+
+    private formatSelection(
+        document: vscode.TextDocument,
+        targetRange: vscode.Range,
+        source: string,
+        editorConfig: WorkbenchEditorConfig,
+    ): string {
+        const selectedSource = document.getText(targetRange);
+        const codeStyleFormatted = this.formatCodeStyle(selectedSource, editorConfig);
+        const prefix = source.slice(0, document.offsetAt(targetRange.start));
+        const contextualFormatted = formatCSharpIndentation(prefix + codeStyleFormatted, {
+            indentation: editorConfig.indentation,
+            csharpIndentation: editorConfig.csharpIndentation,
+        });
+        const lineEnding = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
+
+        return contextualFormatted
+            .split(/\r\n|\n|\r/)
+            .slice(targetRange.start.line)
+            .join(lineEnding);
+    }
 }
 
 function fullDocumentRange(document: vscode.TextDocument): vscode.Range {
@@ -75,12 +107,6 @@ function fullDocumentRange(document: vscode.TextDocument): vscode.Range {
 function expandToFullLines(document: vscode.TextDocument, range: vscode.Range): vscode.Range {
     const lastLine = range.end.character === 0 && range.end.line > range.start.line ? range.end.line - 1 : range.end.line;
     return new vscode.Range(range.start.line, 0, lastLine, document.lineAt(lastLine).text.length);
-}
-
-function getFormattedRangeText(document: vscode.TextDocument, formatted: string, range: vscode.Range): string {
-    const lines = formatted.split(/\r\n|\n|\r/);
-    const lineEnding = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
-    return lines.slice(range.start.line, range.end.line + 1).join(lineEnding);
 }
 
 function getEditorConfigFallback(document: vscode.TextDocument, options: vscode.FormattingOptions): EditorConfigFallback {

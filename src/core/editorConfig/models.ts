@@ -21,6 +21,46 @@ export interface CSharpIndentationOptions {
     readonly indentLabels: CSharpLabelIndentation;
 }
 
+export type CSharpOpenBraceContext =
+    | "accessors"
+    | "anonymous_methods"
+    | "anonymous_types"
+    | "control_blocks"
+    | "events"
+    | "indexers"
+    | "lambdas"
+    | "local_functions"
+    | "methods"
+    | "object_collection_array_initializers"
+    | "properties"
+    | "types";
+
+export interface CSharpNewLineOptions {
+    readonly beforeOpenBrace: "all" | "none" | ReadonlySet<CSharpOpenBraceContext>;
+    readonly beforeElse: boolean;
+    readonly beforeCatch: boolean;
+    readonly beforeFinally: boolean;
+}
+
+export type CSharpBinaryOperatorSpacing = "before_and_after" | "none" | "ignore";
+
+export interface CSharpSpacingOptions {
+    readonly afterControlFlowKeyword: boolean;
+    readonly aroundBinaryOperators: CSharpBinaryOperatorSpacing;
+    readonly afterComma: boolean;
+    readonly beforeComma: boolean;
+    readonly afterForSemicolon: boolean;
+    readonly beforeForSemicolon: boolean;
+    readonly afterCast: boolean;
+    readonly beforeInheritanceColon: boolean;
+    readonly afterInheritanceColon: boolean;
+}
+
+export interface CSharpWrappingOptions {
+    readonly preserveSingleLineStatements: boolean;
+    readonly preserveSingleLineBlocks: boolean;
+}
+
 export interface EditorConfigFallback {
     readonly insertSpaces?: boolean;
     readonly tabSize?: number;
@@ -33,6 +73,9 @@ export interface EditorConfigFallback {
 export interface WorkbenchEditorConfig {
     readonly indentation: IndentationOptions;
     readonly csharpIndentation: CSharpIndentationOptions;
+    readonly csharpNewLines: CSharpNewLineOptions;
+    readonly csharpSpacing: CSharpSpacingOptions;
+    readonly csharpWrapping: CSharpWrappingOptions;
     readonly lineEnding: LineEnding;
     readonly insertFinalNewline: boolean;
     readonly trimTrailingWhitespace: boolean;
