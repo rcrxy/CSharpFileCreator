@@ -14,6 +14,7 @@
         "Other"
     ],
     "activationEvents": [
+        "onLanguage:razor",
         "workspaceContains:**/*.cs",
         "workspaceContains:**/*.cshtml",
         "workspaceContains:**/*.razor",
@@ -46,6 +47,7 @@
         "vsce": "^2.15.0"
     },
     "dependencies": {
+        "editorconfig": "^3.0.2",
         "fast-xml-parser": "^5.11.1",
         "vscode-nls": "^5.2.0"
     },
