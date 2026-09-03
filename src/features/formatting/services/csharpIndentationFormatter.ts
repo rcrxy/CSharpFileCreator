@@ -25,6 +25,7 @@ interface LineSyntax {
 
 const caseLabelPattern = /^(?:case\b.*|default)\s*:/;
 const labelPattern = /^[A-Za-z_][\w]*\s*:/;
+const embeddedStatementHeaderPattern = /^(?:(?:if|for|foreach|while|using|lock|fixed)\s*\(.*\)|else(?:\s+if\s*\(.*\))?|do)\s*$/;
 
 /**
  * 仅重写 C# 行首缩进；调用方可通过行号限制实际替换范围。
@@ -37,9 +38,11 @@ export function formatCSharpIndentation(source: string, options: CSharpFormattin
     const switches: SwitchScope[] = [];
     const lexicalState: LexicalState = { mode: "normal", rawQuoteCount: 0 };
     let braceDepth = 0;
+    let embeddedStatementDepth = 0;
     let pendingSwitch = false;
 
-    for (const line of lines) {
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
         const trimmedLine = line.trim();
         if (trimmedLine.length === 0) {
             formattedLines.push("");
@@ -62,7 +65,9 @@ export function formatCSharpIndentation(source: string, options: CSharpFormattin
             effectiveDepth === activeSwitch.caseBlockBodyDepth - 1,
         );
 
-        let indentDepth = resolveGeneralIndentDepth(effectiveDepth, options.csharpIndentation);
+        let indentDepth =
+            resolveGeneralIndentDepth(effectiveDepth, options.csharpIndentation) +
+            Number(options.csharpIndentation.indentBlockContents) * embeddedStatementDepth;
 
         if (isCaseLabel && activeSwitch) {
             indentDepth = resolveSwitchLabelDepth(activeSwitch, options.csharpIndentation);
@@ -114,9 +119,38 @@ export function formatCSharpIndentation(source: string, options: CSharpFormattin
                 pendingSwitch = true;
             }
         }
+
+        if (startsEmbeddedStatementBody(trimmedLine, lines, lineIndex)) {
+            embeddedStatementDepth++;
+        } else if (embeddedStatementDepth > 0 && completesEmbeddedStatement(trimmedLine)) {
+            embeddedStatementDepth = 0;
+        }
     }
 
     return formattedLines.reduce((result, line, index) => result + line + (separators[index] ?? ""), "");
+}
+
+function startsEmbeddedStatementBody(trimmedLine: string, lines: readonly string[], lineIndex: number): boolean {
+    if (!embeddedStatementHeaderPattern.test(trimmedLine)) {
+        return false;
+    }
+
+    return findNextNonEmptyLine(lines, lineIndex + 1) !== "{";
+}
+
+function completesEmbeddedStatement(trimmedLine: string): boolean {
+    return trimmedLine.endsWith(";") && !trimmedLine.startsWith("//");
+}
+
+function findNextNonEmptyLine(lines: readonly string[], startIndex: number): string | undefined {
+    for (let index = startIndex; index < lines.length; index++) {
+        const trimmedLine = lines[index].trim();
+        if (trimmedLine.length > 0 && !trimmedLine.startsWith("//")) {
+            return trimmedLine;
+        }
+    }
+
+    return undefined;
 }
 
 function resolveGeneralIndentDepth(depth: number, options: CSharpIndentationOptions): number {
