@@ -64,6 +64,7 @@ export interface CSharpWrappingOptions {
 export interface EditorConfigFallback {
     readonly insertSpaces?: boolean;
     readonly tabSize?: number;
+    readonly maxLineLength?: number;
     readonly lineEnding?: LineEnding;
     readonly insertFinalNewline?: boolean;
     readonly trimTrailingWhitespace?: boolean;
@@ -72,6 +73,7 @@ export interface EditorConfigFallback {
 
 export interface WorkbenchEditorConfig {
     readonly indentation: IndentationOptions;
+    readonly maxLineLength?: number;
     readonly csharpIndentation: CSharpIndentationOptions;
     readonly csharpNewLines: CSharpNewLineOptions;
     readonly csharpSpacing: CSharpSpacingOptions;

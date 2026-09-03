@@ -25,6 +25,7 @@ export async function resolveEditorConfig(
 
     return {
         indentation: resolveIndentationOptions(properties, fallback),
+        maxLineLength: resolveMaxLineLength(properties.max_line_length, fallback.maxLineLength),
         csharpIndentation: resolveCSharpIndentationOptions(properties),
         csharpNewLines: resolveCSharpNewLineOptions(properties),
         csharpSpacing: resolveCSharpSpacingOptions(properties),
@@ -35,6 +36,14 @@ export async function resolveEditorConfig(
         charset: resolveCharset(properties.charset, fallback.charset),
         properties,
     };
+}
+
+export function resolveMaxLineLength(value: unknown, fallback?: number): number | undefined {
+    if (value === "off") {
+        return undefined;
+    }
+
+    return positiveInteger(value) ?? positiveIntegerString(value) ?? positiveInteger(fallback) ?? 80;
 }
 
 const csharpOpenBraceContexts = new Set<CSharpOpenBraceContext>([
@@ -177,6 +186,14 @@ function resolveIndentationStyle(configuredStyle: Props["indent_style"], insertS
 
 function positiveInteger(value: unknown): number | undefined {
     return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function positiveIntegerString(value: unknown): number | undefined {
+    if (typeof value !== "string" || !/^\d+$/.test(value.trim())) {
+        return undefined;
+    }
+
+    return positiveInteger(Number.parseInt(value, 10));
 }
 
 function resolveCustomBoolean(value: unknown, defaultValue: boolean): boolean {

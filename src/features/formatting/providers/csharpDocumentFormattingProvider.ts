@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { resolveEditorConfig, type EditorConfigFallback, type WorkbenchEditorConfig } from "../../../core/editorConfig";
 import type { CSharpCodeFormatter } from "../csharpCodeFormatter";
-import { formatCSharpCodeStyle } from "../services/csharpCodeStyleFormatter";
+import { formatCSharpCodeStyle, wrapCSharpLines } from "../services/csharpCodeStyleFormatter";
 import { formatCSharpIndentation } from "../services/csharpIndentationFormatter";
 import { formatDocumentText, formatSelectedText } from "../services/documentTextFormatter";
 
@@ -30,10 +30,12 @@ export class CSharpDocumentFormattingProvider
     formatText(source: string, editorConfig: WorkbenchEditorConfig): string {
         const codeStyleFormatted = this.formatCodeStyle(source, editorConfig);
 
-        return formatCSharpIndentation(codeStyleFormatted, {
+        const indented = formatCSharpIndentation(codeStyleFormatted, {
             indentation: editorConfig.indentation,
             csharpIndentation: editorConfig.csharpIndentation,
         });
+
+        return wrapCSharpLines(indented, editorConfig.maxLineLength, editorConfig.indentation);
     }
 
     private formatCodeStyle(source: string, editorConfig: WorkbenchEditorConfig): string {
@@ -93,10 +95,12 @@ export class CSharpDocumentFormattingProvider
         });
         const lineEnding = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
 
-        return contextualFormatted
+        const selectedFormatted = contextualFormatted
             .split(/\r\n|\n|\r/)
             .slice(targetRange.start.line)
             .join(lineEnding);
+
+        return wrapCSharpLines(selectedFormatted, editorConfig.maxLineLength, editorConfig.indentation);
     }
 }
 
@@ -113,6 +117,7 @@ function getEditorConfigFallback(document: vscode.TextDocument, options: vscode.
     return {
         insertSpaces: options.insertSpaces,
         tabSize: options.tabSize,
+        maxLineLength: vscode.workspace.getConfiguration("editor", document.uri).get<number>("wordWrapColumn"),
         lineEnding: document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n",
     };
 }

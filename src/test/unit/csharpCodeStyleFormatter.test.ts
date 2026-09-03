@@ -4,6 +4,7 @@ import type { CSharpNewLineOptions, CSharpSpacingOptions, CSharpWrappingOptions 
 import {
     formatCSharpCodeStyle,
     type CSharpCodeStyleFormattingOptions,
+    wrapCSharpLines,
 } from "../../features/formatting/services/csharpCodeStyleFormatter";
 
 const defaultNewLines: CSharpNewLineOptions = {
@@ -233,5 +234,42 @@ describe("C# code-style formatting", () => {
         const result = format("class Demo {\r\nvoid Run() { }\r\n}");
         assert.ok(result.includes("class Demo\r\n{"));
         assert.equal(result.replace(/\r\n/g, "").includes("\n"), false);
+    });
+
+    it("wraps long C# lines at commas and binary operators", () => {
+        const indentation = { style: "space" as const, size: 4, tabWidth: 4 };
+        const invocation = wrapCSharpLines(
+            "var result = Calculate(firstArgument, secondArgument, thirdArgument);",
+            44,
+            indentation,
+        );
+        assert.equal(invocation, "var result = Calculate(firstArgument,\n    secondArgument, thirdArgument);");
+
+        const expression = wrapCSharpLines("var result = firstValue + secondValue + thirdValue;", 34, indentation);
+        assert.equal(expression, "var result = firstValue\n    + secondValue + thirdValue;");
+    });
+
+    it("leaves disabled, protected, preprocessor, and unbreakable lines unchanged", () => {
+        const indentation = { style: "space" as const, size: 4, tabWidth: 4 };
+        const source = 'var message = "first, second + third"; // fourth, fifth + sixth';
+        assert.equal(wrapCSharpLines(source, undefined, indentation), source);
+        assert.equal(wrapCSharpLines(source, 20, indentation), source);
+        assert.equal(
+            wrapCSharpLines("#define A_VERY_LONG_PREPROCESSOR_SYMBOL", 10, indentation),
+            "#define A_VERY_LONG_PREPROCESSOR_SYMBOL",
+        );
+        assert.equal(
+            wrapCSharpLines("VeryLongIdentifierWithoutSafeBreakPoint", 10, indentation),
+            "VeryLongIdentifierWithoutSafeBreakPoint",
+        );
+    });
+
+    it("uses tab_width when measuring and indenting continuation lines", () => {
+        const result = wrapCSharpLines("\tCall(firstArgument, secondArgument, thirdArgument);", 32, {
+            style: "tab",
+            size: 4,
+            tabWidth: 4,
+        });
+        assert.equal(result, "\tCall(firstArgument,\n\t\tsecondArgument,\n\t\tthirdArgument);");
     });
 });

@@ -6,6 +6,7 @@ export {
     resolveCSharpWrappingOptions,
     resolveIndentationOptions,
     resolveLineEnding,
+    resolveMaxLineLength,
     resolveBoolean,
     resolveCharset,
 } from "./editorConfigService";

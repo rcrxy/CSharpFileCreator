@@ -12,12 +12,14 @@ returned by the `editorconfig` parser does not mean that Workbench implements it
 | `indent_style` | `space`, `tab`          | Selects spaces or tab characters for each indentation level.                            |
 | `indent_size`  | Positive integer, `tab` | Sets the logical indentation size. When set to `tab`, the resolved `tab_width` is used. |
 | `tab_width`    | Positive integer        | Sets the tab width and resolves the size of `indent_size = tab`.                        |
+| `max_line_length` | Positive integer, `off` | Wraps C# at safe comma and binary-operator boundaries. `off` disables line-length wrapping. |
 | `end_of_line`  | `lf`, `crlf`            | Normalizes document line endings to the configured newline style.                       |
 | `insert_final_newline` | `true`, `false` | Ensures the file ends with or without a final newline.                              |
 | `trim_trailing_whitespace` | `true`, `false` | Removes trailing spaces and tabs before line breaks when enabled.               |
 | `charset` | `utf-8`, `utf-8-bom` | Adds or removes the UTF-8 BOM when formatting. Other EditorConfig charset values are parsed but do not trigger file transcoding. |
 
-These properties currently apply to Razor and C# document formatting.
+These properties currently apply to Razor and C# document formatting. `max_line_length` currently wraps C# documents
+and C# code inside Razor `@code` and `@functions` blocks; it does not wrap Razor markup attributes.
 
 For C# **Format Document**, all properties in this table are applied. **Format Selection** applies indentation and
 `trim_trailing_whitespace` only within the selected full lines; it does not change document-wide line endings, the
@@ -78,7 +80,7 @@ tree implementation. Unsupported or ambiguous constructs are left unchanged wher
 
 ### Resolution Priority
 
-Each indentation property is resolved independently using this priority:
+Indentation properties and `max_line_length` are resolved independently using this priority:
 
 1. Matching `.editorconfig` property.
 2. Current VS Code editor options.
@@ -90,6 +92,7 @@ The VS Code fallback values are:
 | ------------------------------ | --------------------------------- |
 | Indentation style              | `TextEditor.options.insertSpaces` |
 | Indentation size and tab width | `TextEditor.options.tabSize`      |
+| Maximum line length            | `editor.wordWrapColumn`           |
 
 The Workbench defaults are:
 
@@ -97,6 +100,7 @@ The Workbench defaults are:
 indent_style = space
 indent_size = 4
 tab_width = 4
+max_line_length = 80
 ```
 
 ### Examples
@@ -116,6 +120,16 @@ Use tabs with a width of four columns:
 indent_style = tab
 indent_size = tab
 tab_width = 4
+```
+
+Wrap C# code at 120 columns, or disable formatter-driven line wrapping:
+
+```ini
+[*.cs]
+max_line_length = 120
+
+[Generated/*.cs]
+max_line_length = off
 ```
 
 ### EditorConfig Discovery

@@ -46,6 +46,102 @@ export function formatCSharpCodeStyle(source: string, options: CSharpCodeStyleFo
     return formatted;
 }
 
+/**
+ * 在逗号和二元运算符等安全边界处限制 C# 行宽；没有安全断点的长行保持不变。
+ */
+export function wrapCSharpLines(
+    source: string,
+    maxLineLength: number | undefined,
+    indentation: IndentationOptions,
+): string {
+    if (!maxLineLength) {
+        return source;
+    }
+
+    const indentUnit = indentation.style === "tab" ? "\t" : " ".repeat(indentation.size);
+    const lineEnding = detectLineEnding(source);
+    return splitLinesWithEndings(source)
+        .map(line => wrapCSharpLine(line.content, maxLineLength, indentUnit, indentation.tabWidth).join(lineEnding) + line.ending)
+        .join("");
+}
+
+interface LineBreakCandidate {
+    readonly index: number;
+    readonly placement: "after" | "before";
+}
+
+function wrapCSharpLine(content: string, maxLineLength: number, indentUnit: string, tabWidth: number): string[] {
+    if (visualLength(content, tabWidth) <= maxLineLength || content.trimStart().startsWith("#")) {
+        return [content];
+    }
+
+    const leadingWhitespace = /^\s*/.exec(content)?.[0] ?? "";
+    const continuationIndent = leadingWhitespace + indentUnit;
+    const result: string[] = [];
+    let remaining = content;
+
+    while (visualLength(remaining, tabWidth) > maxLineLength) {
+        const candidate = chooseLineBreakCandidate(remaining, maxLineLength, tabWidth);
+        if (!candidate) {
+            break;
+        }
+
+        const splitIndex = candidate.placement === "after" ? candidate.index + 1 : candidate.index;
+        const before = remaining.slice(0, splitIndex).trimEnd();
+        const after = remaining.slice(splitIndex).trimStart();
+        if (!before || !after) {
+            break;
+        }
+
+        result.push(before);
+        remaining = continuationIndent + after;
+    }
+
+    result.push(remaining);
+    return result;
+}
+
+function chooseLineBreakCandidate(
+    line: string,
+    maxLineLength: number,
+    tabWidth: number,
+): LineBreakCandidate | undefined {
+    const candidates = findLineBreakCandidates(line);
+    const candidatesBeforeLimit = candidates.filter(candidate => {
+        const splitIndex = candidate.placement === "after" ? candidate.index + 1 : candidate.index;
+        return visualLength(line.slice(0, splitIndex), tabWidth) <= maxLineLength;
+    });
+
+    return candidatesBeforeLimit.at(-1) ?? candidates[0];
+}
+
+function findLineBreakCandidates(line: string): LineBreakCandidate[] {
+    const mask = createCodeMask(line);
+    const candidates: LineBreakCandidate[] = [];
+
+    for (let index = 0; index < line.length; index++) {
+        if (line[index] === "," && mask[index]) {
+            candidates.push({ index, placement: "after" });
+        }
+    }
+
+    for (const match of line.matchAll(binaryOperatorPattern)) {
+        if (mask[match.index] && !isUnaryOrNonBinaryOperator(line, match.index, match[0])) {
+            candidates.push({ index: match.index, placement: "before" });
+        }
+    }
+
+    return candidates.sort((left, right) => left.index - right.index);
+}
+
+function visualLength(value: string, tabWidth: number): number {
+    let column = 0;
+    for (const character of value) {
+        column += character === "\t" ? tabWidth - (column % tabWidth) : 1;
+    }
+    return column;
+}
+
 function formatSpacing(source: string, options: CSharpSpacingOptions): string {
     let formatted = source;
     const keywordPattern = new RegExp(`\\b(${controlFlowKeywords.join("|")})[ \\t]*\\(`, "g");

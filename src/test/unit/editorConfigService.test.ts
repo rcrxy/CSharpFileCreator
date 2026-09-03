@@ -4,6 +4,7 @@ import {
     resolveCSharpNewLineOptions,
     resolveCSharpSpacingOptions,
     resolveCSharpWrappingOptions,
+    resolveMaxLineLength,
 } from "../../core/editorConfig";
 
 describe("C# EditorConfig options", () => {
@@ -89,5 +90,15 @@ describe("C# EditorConfig options", () => {
             resolveCSharpSpacingOptions({ csharp_space_around_binary_operators: "invalid" }).aroundBinaryOperators,
             "before_and_after",
         );
+    });
+
+    it("resolves max_line_length from EditorConfig, VS Code fallback, or the default", () => {
+        assert.equal(resolveMaxLineLength(120, 100), 120);
+        assert.equal(resolveMaxLineLength("140", 100), 140);
+        assert.equal(resolveMaxLineLength(undefined, 100), 100);
+        assert.equal(resolveMaxLineLength("invalid", 100), 100);
+        assert.equal(resolveMaxLineLength(undefined), 80);
+        assert.equal(resolveMaxLineLength("off", 100), undefined);
+        assert.equal(resolveMaxLineLength(0, 0), 80);
     });
 });
