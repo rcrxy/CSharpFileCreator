@@ -1,13 +1,27 @@
 import * as vscode from "vscode";
+import type { CSharpCodeFormatter } from "./csharpCodeFormatter";
+import { CSharpDocumentFormattingProvider } from "./providers/csharpDocumentFormattingProvider";
 import { RazorDocumentFormattingProvider } from "./providers/razorDocumentFormattingProvider";
 
-export function registerFormattingFeature(context: vscode.ExtensionContext): void {
+export function registerFormattingFeature(context: vscode.ExtensionContext, razorCSharpFormatter?: CSharpCodeFormatter): void {
     const log = vscode.window.createOutputChannel("C# Workbench", { log: true });
+    const csharpFormatter = new CSharpDocumentFormattingProvider(log);
     const razorFormattingProvider = vscode.languages.registerDocumentFormattingEditProvider(
         [{ language: "aspnetcorerazor" }, { language: "razor" }],
-        new RazorDocumentFormattingProvider(log),
+        new RazorDocumentFormattingProvider(log, razorCSharpFormatter ?? csharpFormatter),
+    );
+    const csharpDocumentFormattingProvider = vscode.languages.registerDocumentFormattingEditProvider(
+        { language: "csharp" },
+        csharpFormatter,
+    );
+    const csharpRangeFormattingProvider = vscode.languages.registerDocumentRangeFormattingEditProvider(
+        { language: "csharp" },
+        csharpFormatter,
     );
 
-    log.info("Formatting feature registered for ASP.NET Razor, Razor, and C# documents.");
-    context.subscriptions.push(log, razorFormattingProvider);
+    log.info(
+        `Formatting feature registered for ASP.NET Razor, Razor, and C# document/selection formatting ` +
+            `(Razor C# formatter=${razorCSharpFormatter ? "custom" : "default"}).`,
+    );
+    context.subscriptions.push(log, razorFormattingProvider, csharpDocumentFormattingProvider, csharpRangeFormattingProvider);
 }

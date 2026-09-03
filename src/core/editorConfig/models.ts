@@ -10,6 +10,17 @@ export interface IndentationOptions {
     readonly tabWidth: number;
 }
 
+export type CSharpLabelIndentation = "flush_left" | "one_less_than_current" | "no_change";
+
+export interface CSharpIndentationOptions {
+    readonly indentBlockContents: boolean;
+    readonly indentBraces: boolean;
+    readonly indentCaseContents: boolean;
+    readonly indentSwitchLabels: boolean;
+    readonly indentCaseContentsWhenBlock: boolean;
+    readonly indentLabels: CSharpLabelIndentation;
+}
+
 export interface EditorConfigFallback {
     readonly insertSpaces?: boolean;
     readonly tabSize?: number;
@@ -21,6 +32,7 @@ export interface EditorConfigFallback {
 
 export interface WorkbenchEditorConfig {
     readonly indentation: IndentationOptions;
+    readonly csharpIndentation: CSharpIndentationOptions;
     readonly lineEnding: LineEnding;
     readonly insertFinalNewline: boolean;
     readonly trimTrailingWhitespace: boolean;

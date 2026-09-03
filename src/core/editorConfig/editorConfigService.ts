@@ -3,6 +3,8 @@ import type * as vscode from "vscode";
 import { defaultIndentationOptions } from "./defaults";
 import type {
     Charset,
+    CSharpIndentationOptions,
+    CSharpLabelIndentation,
     EditorConfigFallback,
     IndentationOptions,
     IndentationStyle,
@@ -18,11 +20,23 @@ export async function resolveEditorConfig(
 
     return {
         indentation: resolveIndentationOptions(properties, fallback),
+        csharpIndentation: resolveCSharpIndentationOptions(properties),
         lineEnding: resolveLineEnding(properties.end_of_line, fallback.lineEnding),
         insertFinalNewline: resolveBoolean(properties.insert_final_newline, fallback.insertFinalNewline, true),
         trimTrailingWhitespace: resolveBoolean(properties.trim_trailing_whitespace, fallback.trimTrailingWhitespace, false),
         charset: resolveCharset(properties.charset, fallback.charset),
         properties,
+    };
+}
+
+export function resolveCSharpIndentationOptions(properties: Readonly<Props>): CSharpIndentationOptions {
+    return {
+        indentBlockContents: resolveCustomBoolean(properties.csharp_indent_block_contents, true),
+        indentBraces: resolveCustomBoolean(properties.csharp_indent_braces, false),
+        indentCaseContents: resolveCustomBoolean(properties.csharp_indent_case_contents, true),
+        indentSwitchLabels: resolveCustomBoolean(properties.csharp_indent_switch_labels, true),
+        indentCaseContentsWhenBlock: resolveCustomBoolean(properties.csharp_indent_case_contents_when_block, true),
+        indentLabels: resolveLabelIndentation(properties.csharp_indent_labels),
     };
 }
 
@@ -110,4 +124,24 @@ function resolveIndentationStyle(configuredStyle: Props["indent_style"], insertS
 
 function positiveInteger(value: unknown): number | undefined {
     return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function resolveCustomBoolean(value: unknown, defaultValue: boolean): boolean {
+    if (value === true || value === "true") {
+        return true;
+    }
+
+    if (value === false || value === "false") {
+        return false;
+    }
+
+    return defaultValue;
+}
+
+function resolveLabelIndentation(value: unknown): CSharpLabelIndentation {
+    if (value === "flush_left" || value === "no_change") {
+        return value;
+    }
+
+    return "one_less_than_current";
 }

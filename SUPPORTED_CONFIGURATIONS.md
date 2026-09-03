@@ -17,7 +17,28 @@ returned by the `editorconfig` parser does not mean that Workbench implements it
 | `trim_trailing_whitespace` | `true`, `false` | Removes trailing spaces and tabs before line breaks when enabled.               |
 | `charset` | `utf-8`, `utf-8-bom` | Adds or removes the UTF-8 BOM when formatting. Other EditorConfig charset values are parsed but do not trigger file transcoding. |
 
-These properties currently apply to Razor document formatting.
+These properties currently apply to Razor and C# document formatting.
+
+For C# **Format Document**, all properties in this table are applied. **Format Selection** applies indentation and
+`trim_trailing_whitespace` only within the selected full lines; it does not change document-wide line endings, the
+final newline, or the BOM.
+
+### C# Indentation
+
+| Property                                 | Supported values                                   | Default                 | Behavior                                                                         |
+| ---------------------------------------- | -------------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------- |
+| `csharp_indent_block_contents`           | `true`, `false`                                    | `true`                  | Indents statements and declarations inside brace-delimited blocks.               |
+| `csharp_indent_braces`                   | `true`, `false`                                    | `false`                 | Adds one indentation level to block braces.                                      |
+| `csharp_indent_case_contents`            | `true`, `false`                                    | `true`                  | Indents statements under `case` and `default` labels.                            |
+| `csharp_indent_switch_labels`            | `true`, `false`                                    | `true`                  | Indents `case` and `default` labels relative to the containing switch statement. |
+| `csharp_indent_case_contents_when_block` | `true`, `false`                                    | `true`                  | Indents an explicit block and its statements under a case label.                 |
+| `csharp_indent_labels`                   | `flush_left`, `one_less_than_current`, `no_change` | `one_less_than_current` | Controls indentation of ordinary statement labels.                               |
+
+The C# formatter currently rewrites leading indentation only. It does not yet format spacing, line wrapping, using
+directives, or brace placement. Both **Format Document** and **Format Selection** are supported for C# documents.
+Razor `@code` and `@functions` blocks reuse the same C# formatter through the `CSharpCodeFormatter` interface.
+`registerFormattingFeature` accepts an optional `CSharpCodeFormatter` when a different implementation should be used
+for embedded Razor C# code.
 
 ### Resolution Priority
 
@@ -80,7 +101,7 @@ currently execute them. This includes properties such as:
 - `utf-16le`
 - `latin1` charset transcoding
 - `dotnet_*`
-- `csharp_*`
+- C# formatting properties other than the six indentation options listed above
 
 Move a property into the applied-properties table only after a Workbench feature implements and validates its behavior.
 

@@ -1,4 +1,5 @@
 import type { Charset, IndentationOptions, LineEnding } from "../../../core/editorConfig";
+import { formatDocumentText } from "./documentTextFormatter";
 
 export interface RazorFormattingOptions {
     readonly indentation: IndentationOptions;
@@ -6,6 +7,7 @@ export interface RazorFormattingOptions {
     readonly insertFinalNewline: boolean;
     readonly trimTrailingWhitespace: boolean;
     readonly charset: Charset;
+    readonly formatCSharp?: (source: string) => string;
 }
 
 const voidElementNames = new Set([
@@ -58,42 +60,68 @@ interface MultilineOpeningTagState {
 }
 
 export function formatRazorMarkup(source: string, options: RazorFormattingOptions): string {
-    const normalizedLineEnding = options.lineEnding;
-    const normalizedSource = normalizeLineEndings(source, normalizedLineEnding);
-    const sourceWithTrailingWhitespace = options.trimTrailingWhitespace
-        ? normalizedSource.replace(/[ \t]+(?=\r\n|\n|\r|$)/g, "")
-        : normalizedSource;
-    const separators = sourceWithTrailingWhitespace.match(/\r\n|\n|\r/g) ?? [];
-    const lines = sourceWithTrailingWhitespace.split(/\r\n|\n|\r/);
+    const sourceWithFormattedCSharp = options.formatCSharp
+        ? formatRazorCodeBlocks(source, options.indentation, options.formatCSharp)
+        : source;
+    const separators = sourceWithFormattedCSharp.match(/\r\n|\n|\r/g) ?? [];
+    const lines = sourceWithFormattedCSharp.split(/\r\n|\n|\r/);
     const formattedLines = formatLines(lines, options.indentation);
     const formatted = formattedLines.reduce((result, line, index) => {
         return result + line + (separators[index] ?? "");
     }, "");
 
-    const finalDocument =
-        options.insertFinalNewline && !formatted.endsWith(normalizedLineEnding)
-            ? `${formatted}${normalizedLineEnding}`
-            : !options.insertFinalNewline && formatted.endsWith(normalizedLineEnding)
-              ? formatted.replace(new RegExp(`${escapeRegExp(normalizedLineEnding)}+$`), "")
-              : formatted;
-
-    if (options.charset === "utf-8-bom" && !finalDocument.startsWith("\uFEFF")) {
-        return `\uFEFF${finalDocument}`;
-    }
-
-    if (options.charset !== "utf-8-bom" && finalDocument.startsWith("\uFEFF")) {
-        return finalDocument.slice(1);
-    }
-
-    return finalDocument;
+    return formatDocumentText(formatted, options);
 }
 
-function normalizeLineEndings(source: string, lineEnding: LineEnding): string {
-    return source.replace(/\r\n|\n|\r/g, lineEnding);
-}
+function formatRazorCodeBlocks(
+    source: string,
+    indentation: IndentationOptions,
+    formatCSharp: (source: string) => string,
+): string {
+    const lineEnding = source.includes("\r\n") ? "\r\n" : "\n";
+    const lines = source.split(/\r\n|\n|\r/);
+    const indentUnit = indentation.style === "tab" ? "\t" : " ".repeat(indentation.size);
 
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (let directiveLine = 0; directiveLine < lines.length; directiveLine++) {
+        if (!razorCodeBlockPattern.test(lines[directiveLine].trim())) {
+            continue;
+        }
+
+        const state = createRazorCodeBlockState();
+        let openingLine = -1;
+        let closingLine = -1;
+
+        for (let lineIndex = directiveLine; lineIndex < lines.length; lineIndex++) {
+            const braceScan = scanCSharpBraces(lines[lineIndex], state.lexicalState);
+            state.depth += braceScan.delta;
+            if (braceScan.sawOpeningBrace && !state.seenOpeningBrace) {
+                state.seenOpeningBrace = true;
+                openingLine = lineIndex;
+            }
+
+            if (state.seenOpeningBrace && state.depth <= 0) {
+                closingLine = lineIndex;
+                break;
+            }
+        }
+
+        if (openingLine < 0 || closingLine <= openingLine + 1) {
+            directiveLine = Math.max(directiveLine, closingLine);
+            continue;
+        }
+
+        const baseIndent = getLeadingWhitespace(lines[directiveLine]);
+        const csharpSource = lines.slice(openingLine + 1, closingLine).join(lineEnding);
+        const formattedCSharp = formatCSharp(csharpSource).split(/\r\n|\n|\r/);
+        const indentedCSharp = formattedCSharp.map(line => {
+            return line.trim().length === 0 ? "" : baseIndent + indentUnit + line;
+        });
+
+        lines.splice(openingLine + 1, closingLine - openingLine - 1, ...indentedCSharp);
+        directiveLine = openingLine + indentedCSharp.length + 1;
+    }
+
+    return lines.join(lineEnding);
 }
 
 function formatLines(lines: readonly string[], indentation: IndentationOptions): string[] {

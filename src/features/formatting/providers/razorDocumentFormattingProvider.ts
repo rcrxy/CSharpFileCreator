@@ -1,9 +1,13 @@
 import * as vscode from "vscode";
 import { resolveEditorConfig, type EditorConfigFallback } from "../../../core/editorConfig";
+import type { CSharpCodeFormatter } from "../csharpCodeFormatter";
 import { formatRazorMarkup } from "../services/razorMarkupFormatter";
 
 export class RazorDocumentFormattingProvider implements vscode.DocumentFormattingEditProvider {
-    constructor(private readonly log: vscode.LogOutputChannel) {}
+    constructor(
+        private readonly log: vscode.LogOutputChannel,
+        private readonly csharpFormatter?: CSharpCodeFormatter,
+    ) {}
 
     async provideDocumentFormattingEdits(
         document: vscode.TextDocument,
@@ -31,6 +35,9 @@ export class RazorDocumentFormattingProvider implements vscode.DocumentFormattin
                 insertFinalNewline: editorConfig.insertFinalNewline,
                 trimTrailingWhitespace: editorConfig.trimTrailingWhitespace,
                 charset: editorConfig.charset,
+                formatCSharp: this.csharpFormatter
+                    ? csharpSource => this.csharpFormatter!.formatText(csharpSource, editorConfig)
+                    : undefined,
             });
             const changed = formatted !== source;
 
