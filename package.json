@@ -1,7 +1,7 @@
 {
-    "name": "csharpfilecreator",
-    "displayName": "C# File Creator",
-    "description": "Quickly Create C# Files via the Right-Click Menu.",
+    "name": "csharp-workbench",
+    "displayName": "C# Workbench",
+    "description": "C# workbench",
     "version": "0.0.1",
     "publisher": "zeco",
     "author": "zeco",
@@ -25,8 +25,9 @@
     "main": "./out/index.js",
     "scripts": {
         "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
+        "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
+        "compile": "npm run clean && tsc -p ./",
+        "watch": "npm run clean && tsc -watch -p ./",
         "pretest": "npm run compile && npm run lint",
         "lint": "eslint src",
         "test": "vscode-test"

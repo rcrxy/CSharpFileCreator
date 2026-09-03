@@ -1,14 +1,11 @@
+import type { CSharpLanguageCapabilities } from "../../../shared/csharp/csharpLanguage";
+
 export type CSharpTemplateKind = "class" | "interface" | "record" | "struct" | "enum" | "abstractClass" | "staticClass";
 
 export interface CSharpTemplateOption {
     readonly label: string;
     readonly description: string;
     readonly templateKind: CSharpTemplateKind;
-}
-
-export interface CSharpLanguageCapabilities {
-    readonly supportsFileScopedNamespace: boolean;
-    readonly supportsRecords: boolean;
 }
 
 export interface CSharpTemplateContext {

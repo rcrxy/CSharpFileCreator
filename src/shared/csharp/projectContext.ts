@@ -23,13 +23,7 @@ export interface ProjectContextProvider {
     getProperties(projectPath: string): Promise<ProjectProperties | undefined>;
 }
 
-/**
- * 通过 dotnet msbuild 获取经过 MSBuild 实际评估后的项目属性。
- */
 export class MsBuildProjectContextProvider implements ProjectContextProvider {
-    /**
-     * 查询模板生成所需的最小项目属性；命令不可用或超时时返回 undefined。
-     */
     public async getProperties(projectPath: string): Promise<ProjectProperties | undefined> {
         try {
             const propertyArgument = `-getProperty:${evaluatedPropertyNames.join(",")}`;
@@ -45,13 +39,7 @@ export class MsBuildProjectContextProvider implements ProjectContextProvider {
     }
 }
 
-/**
- * 直接读取 csproj XML 的 fallback 属性提供器。
- */
 export class XmlProjectContextProvider implements ProjectContextProvider {
-    /**
-     * 从未评估的 csproj XML 中提取可用属性。
-     */
     public async getProperties(projectPath: string): Promise<ProjectProperties | undefined> {
         try {
             const xml = await fs.readFile(projectPath, "utf8");
@@ -74,7 +62,6 @@ export async function resolveProjectContext(
         return undefined;
     }
 
-    // 优先使用 MSBuild 的评估结果，失败后再退回直接解析 csproj XML。
     for (const provider of providers) {
         const properties = await provider.getProperties(projectPath);
         if (properties) {
@@ -92,16 +79,12 @@ export async function resolveProjectContext(
     };
 }
 
-/**
- * 从目标目录逐级向上查找最近的 .csproj 文件。
- */
 export async function findNearestProject(targetDirectory: string): Promise<string | undefined> {
     let currentDirectory = path.resolve(targetDirectory);
 
     while (true) {
         try {
             const entries = await fs.readdir(currentDirectory, { withFileTypes: true });
-            // 同一目录存在多个项目时按文件名排序，保证选择结果稳定。
             const project = entries
                 .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".csproj"))
                 .sort((left, right) => left.name.localeCompare(right.name))[0];
@@ -122,11 +105,7 @@ export async function findNearestProject(targetDirectory: string): Promise<strin
     }
 }
 
-/**
- * 从 dotnet msbuild 输出中解析属性 JSON。
- */
 export function parseMsBuildProperties(output: string): ProjectProperties | undefined {
-    // MSBuild 可能在 JSON 前后输出提示文本，因此只截取最外层 JSON 对象。
     const jsonStart = output.indexOf("{");
     const jsonEnd = output.lastIndexOf("}");
     if (jsonStart < 0 || jsonEnd < jsonStart) {
@@ -143,9 +122,6 @@ export function parseMsBuildProperties(output: string): ProjectProperties | unde
     }
 }
 
-/**
- * 从 csproj XML 的 PropertyGroup 中提取模板所需属性。
- */
 export function parseProjectXml(xml: string): ProjectProperties {
     const parser = new XMLParser({ parseTagValue: false, trimValues: true });
     const document = parser.parse(xml) as {
@@ -166,9 +142,6 @@ export function parseProjectXml(xml: string): ProjectProperties {
     return normalizeProperties(properties) ?? {};
 }
 
-/**
- * 将外部数据统一转换为内部使用的项目属性结构。
- */
 function normalizeProperties(properties: Record<string, unknown> | undefined): ProjectProperties | undefined {
     if (!properties) {
         return undefined;
@@ -182,9 +155,6 @@ function normalizeProperties(properties: Record<string, unknown> | undefined): P
     };
 }
 
-/**
- * 仅接受非空字符串属性值。
- */
 function asNonEmptyString(value: unknown): string | undefined {
     if (typeof value !== "string") {
         return undefined;
