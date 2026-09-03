@@ -1,26 +1,20 @@
-import * as vscode from "vscode";
 import * as path from "node:path";
+import * as vscode from "vscode";
+import { resolveCSharpCapabilities } from "../../../shared/csharp/csharpLanguage";
+import { resolveNamespace } from "../../../shared/csharp/csharpNamespace";
+import { resolveProjectContext } from "../../../shared/csharp/projectContext";
 import type { RazorTemplateOption } from "../models/razorTemplate";
-import { resolveCSharpCapabilities, resolveNamespace } from "../resolvers/csharpContext";
-import { resolveProjectContext } from "../resolvers/projectContext";
-import { parseTargetInput, validateTargetInput } from "./createCSharpFile";
+import { parseTargetInput, resolveTargetDirectory, validateTargetInput } from "../services/fileTarget";
+import { createFiles, findExistingFile, type FileContent } from "../services/fileWriter";
 
-const razorTemplateDirectory = ["src", "templates", "razor"] as const;
+const razorTemplateDirectory = ["src", "features", "fileCreation", "templates", "razor"] as const;
 
-interface RazorFileContent {
-    readonly fileName: string;
-    readonly content: string;
-}
-
-/**
- * 根据模板创建单个 Razor 文件，或创建相互关联的 Razor、代码后置和隔离样式文件。
- */
 export async function createRazorFile(
     template: RazorTemplateOption,
     extensionUri: vscode.Uri,
     selectedUri?: vscode.Uri,
 ): Promise<void> {
-    const targetDirectoryUri = selectedUri ?? vscode.workspace.workspaceFolders?.[0]?.uri;
+    const targetDirectoryUri = resolveTargetDirectory(selectedUri);
     if (!targetDirectoryUri) {
         void vscode.window.showErrorMessage("Open a workspace folder before creating a Razor file.");
         return;
@@ -36,7 +30,7 @@ export async function createRazorFile(
         placeHolder: "Components/Module",
         prompt: "Enter a component name or relative path",
         title: `New ${template.label}`,
-        validateInput: value => validateRazorTargetInput(value),
+        validateInput: value => validateTargetInput(stripRazorExtension(value)),
     });
     if (!input) {
         return;
@@ -70,33 +64,13 @@ export async function createRazorFile(
     }
 
     try {
-        await vscode.workspace.fs.createDirectory(finalDirectoryUri);
-
-        // 三个关联文件放在同一个 WorkspaceEdit 中创建，避免只生成其中一部分。
-        const edit = new vscode.WorkspaceEdit();
-        for (const file of files) {
-            edit.createFile(vscode.Uri.joinPath(finalDirectoryUri, file.fileName), {
-                contents: new TextEncoder().encode(file.content),
-                overwrite: false,
-            });
-        }
-
-        if (!(await vscode.workspace.applyEdit(edit))) {
-            throw new Error("VS Code could not apply the Razor file creation edit.");
-        }
-
-        const razorUri = vscode.Uri.joinPath(finalDirectoryUri, `${componentName}.razor`);
-        const document = await vscode.workspace.openTextDocument(razorUri);
-        await vscode.window.showTextDocument(document);
+        await createFiles(finalDirectoryUri, files, `${componentName}.razor`);
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         void vscode.window.showErrorMessage(`Could not create Razor component: ${message}`);
     }
 }
 
-/**
- * 读取静态模板，并替换组件名、CSS 类名和代码后置声明占位符。
- */
 async function renderRazorFiles(
     template: RazorTemplateOption,
     extensionUri: vscode.Uri,
@@ -104,7 +78,7 @@ async function renderRazorFiles(
     namespaceName: string,
     pageName: string,
     supportsFileScopedNamespace: boolean,
-): Promise<readonly RazorFileContent[]> {
+): Promise<readonly FileContent[]> {
     const cssClassName = toKebabCase(componentName);
     const replacements = {
         COMPONENT_NAME: componentName,
@@ -119,7 +93,7 @@ async function renderRazorFiles(
         return [{ fileName: `${componentName}.razor`, content: replacePlaceholders(content, replacements) }];
     }
 
-    const templateFiles = ["component.razor", "component.razor.cs.template", "component.razor.css"] as const;
+    const templateFiles = ["component.razor", "component.razor.cs.template", "component.razor.css.template"] as const;
     const contents = await Promise.all(templateFiles.map(fileName => readRazorTemplate(extensionUri, fileName)));
 
     return [
@@ -129,9 +103,6 @@ async function renderRazorFiles(
     ];
 }
 
-/**
- * 生成与 Razor 组件同名的 partial class，确保代码后置与组件生成类合并。
- */
 function renderCodeBehind(componentName: string, namespaceName: string, supportsFileScopedNamespace: boolean): string {
     const declaration = `public partial class ${componentName}\n{\n    private string Title => "${componentName}";\n}`;
     if (supportsFileScopedNamespace) {
@@ -145,9 +116,6 @@ function renderCodeBehind(componentName: string, namespaceName: string, supports
     return `namespace ${namespaceName}\n{\n${indentedDeclaration}\n}`;
 }
 
-/**
- * 根据目标文件相对项目根目录的路径生成页面路由，并移除开头的 Page/Pages/View/Views 目录。
- */
 function resolvePageName(targetDirectory: string, componentName: string, baseDirectory: string): string {
     const relativeDirectory = path.relative(baseDirectory, targetDirectory);
     const directorySegments =
@@ -162,42 +130,13 @@ function resolvePageName(targetDirectory: string, componentName: string, baseDir
     return `/${[...directorySegments, componentName].join("/")}`;
 }
 
-/**
- * 从扩展包内读取 Razor 静态模板资源。
- */
 async function readRazorTemplate(extensionUri: vscode.Uri, fileName: string): Promise<string> {
     const templateUri = vscode.Uri.joinPath(extensionUri, ...razorTemplateDirectory, fileName);
     return new TextDecoder().decode(await vscode.workspace.fs.readFile(templateUri));
 }
 
-/**
- * 替换模板中的大写占位符。
- */
 function replacePlaceholders(template: string, replacements: Readonly<Record<string, string>>): string {
     return Object.entries(replacements).reduce((content, [name, value]) => content.replaceAll(`{{${name}}}`, value), template);
-}
-
-/**
- * 在创建前检查任意一个目标文件是否存在。
- */
-async function findExistingFile(directoryUri: vscode.Uri, files: readonly RazorFileContent[]): Promise<string | undefined> {
-    for (const file of files) {
-        try {
-            await vscode.workspace.fs.stat(vscode.Uri.joinPath(directoryUri, file.fileName));
-            return file.fileName;
-        } catch {
-            // 文件不存在时继续检查下一个目标文件。
-        }
-    }
-
-    return undefined;
-}
-
-/**
- * 复用 C# 类型名校验，并允许用户输入可选的 .razor 扩展名。
- */
-function validateRazorTargetInput(value: string): string | undefined {
-    return validateTargetInput(stripRazorExtension(value));
 }
 
 function stripRazorExtension(value: string): string {

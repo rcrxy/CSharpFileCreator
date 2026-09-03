@@ -1,7 +1,4 @@
-import type { CSharpTemplateKind } from "../models/csharpTemplate";
-
-export const createCSharpFileSubmenu = "csharpfilecreator.newCSharpFile";
-export const createRazorFileSubmenu = "csharpfilecreator.newRazorFile";
+import type { CSharpTemplateKind } from "./models/csharpTemplate";
 
 export const createCSharpFileCommands: Readonly<Record<CSharpTemplateKind, string>> = {
     class: "csharpfilecreator.newClass",

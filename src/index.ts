@@ -1,28 +1,16 @@
 import * as vscode from "vscode";
-import { createCSharpFile } from "./commands/createCSharpFile";
-import { createRazorFile } from "./commands/createRazorFile";
-import { createCSharpFileCommands, createRazorFileCommands } from "./constants/commandName";
-import { csharpTemplateOptions } from "./models/csharpTemplate";
-import { razorTemplateOptions } from "./models/razorTemplate";
+import type { ExtensionFeature } from "./core/extensionFeature";
+import { registerFileCreationFeature } from "./features/fileCreation";
+
+const features: readonly ExtensionFeature[] = [registerFileCreationFeature];
 
 /**
- * 激活扩展，并为每一种 C# 文件模板注册独立命令。
+ * 激活扩展，并依次注册各个独立功能模块。
  */
 export function activate(context: vscode.ExtensionContext) {
-    const createFileDisposables = csharpTemplateOptions.map(template =>
-        vscode.commands.registerCommand(createCSharpFileCommands[template.templateKind], uri =>
-            createCSharpFile(template, uri),
-        ),
-    );
-    const createRazorFileDisposables = razorTemplateOptions.map(template =>
-        vscode.commands.registerCommand(createRazorFileCommands[template.templateKind], uri =>
-            createRazorFile(template, context.extensionUri, uri),
-        ),
-    );
-
-    const watcher = vscode.workspace.createFileSystemWatcher("**/*.{cs,razor,cshtml}");
-
-    context.subscriptions.push(...createFileDisposables, ...createRazorFileDisposables, watcher);
+    for (const registerFeature of features) {
+        registerFeature(context);
+    }
 }
 
 /**
