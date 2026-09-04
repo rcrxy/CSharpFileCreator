@@ -25,11 +25,7 @@ export class RazorDocumentFormattingProvider
         options: vscode.FormattingOptions,
         token: vscode.CancellationToken,
     ): Promise<vscode.TextEdit[]> {
-        this.log.info(
-            `Razor range formatting requested for ${document.uri.toString()} ` +
-                `(range=${formatRange(range)}); formatting the complete document for structural consistency.`,
-        );
-        return this.provideFullDocumentFormattingEdits(document, options, token, "range");
+        return this.provideFullDocumentFormattingEdits(document, options, token, "range", formatRange(range));
     }
 
     async provideDocumentRangesFormattingEdits(
@@ -38,11 +34,13 @@ export class RazorDocumentFormattingProvider
         options: vscode.FormattingOptions,
         token: vscode.CancellationToken,
     ): Promise<vscode.TextEdit[]> {
-        this.log.info(
-            `Razor multi-range formatting requested for ${document.uri.toString()} ` +
-                `(ranges=${ranges.map(formatRange).join(", ")}); formatting the complete document once.`,
+        return this.provideFullDocumentFormattingEdits(
+            document,
+            options,
+            token,
+            "ranges",
+            `count=${ranges.length}`,
         );
-        return this.provideFullDocumentFormattingEdits(document, options, token, "ranges");
     }
 
     private async provideFullDocumentFormattingEdits(
@@ -50,21 +48,16 @@ export class RazorDocumentFormattingProvider
         options: vscode.FormattingOptions,
         token: vscode.CancellationToken,
         trigger: "document" | "range" | "ranges",
+        requestedRanges?: string,
     ): Promise<vscode.TextEdit[]> {
         const startedAt = performance.now();
-        this.log.info(
-            `Formatting started: ${document.uri.toString()} ` +
-                `(trigger=${trigger}, language=${document.languageId}, version=${document.version}).`,
-        );
 
         try {
             const editorConfig = await resolveEditorConfig(document.uri, getIndentationFallback(document, options));
             if (token.isCancellationRequested) {
-                this.log.info(`Formatting cancelled after ${formatElapsedTime(startedAt)}.`);
+                this.log.info(`Razor formatting cancelled: ${document.uri.toString()} (trigger=${trigger}).`);
                 return [];
             }
-
-            this.log.info(`Formatting configuration: ${JSON.stringify(editorConfig)}.`);
 
             const source = document.getText();
             const formatted = formatRazorMarkup(source, {
@@ -81,9 +74,11 @@ export class RazorDocumentFormattingProvider
             const changed = formatted !== source;
 
             this.log.info(
-                `Formatting completed in ${formatElapsedTime(startedAt)} (changed=${changed}, input=${source.length} chars, output=${formatted.length} chars).`,
+                `Razor formatting completed: ${document.uri.toString()} ` +
+                    `(trigger=${trigger}, changed=${changed}, duration=${formatElapsedTime(startedAt)}, ` +
+                    `inputChars=${source.length}, outputChars=${formatted.length}` +
+                    `${requestedRanges ? `, request=${requestedRanges}` : ""}).`,
             );
-            this.log.info(`Formatted result for ${document.uri.toString()}:\n${formatted}`);
 
             if (!changed) {
                 return [];
@@ -92,7 +87,7 @@ export class RazorDocumentFormattingProvider
             const documentRange = new vscode.Range(document.positionAt(0), document.positionAt(source.length));
             return [vscode.TextEdit.replace(documentRange, formatted)];
         } catch (error) {
-            this.log.error(error instanceof Error ? error : String(error));
+            this.log.error(`Razor formatting failed: ${document.uri.toString()} (trigger=${trigger}).`, error);
             throw error;
         }
     }
