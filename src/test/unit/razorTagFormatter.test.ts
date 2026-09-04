@@ -246,6 +246,26 @@ describe("Razor tag formatting", () => {
         );
     });
 
+    it("keeps C# string literals inside Razor expression attributes intact when wrapping", () => {
+        const source =
+            '<RadzenIcon Icon="@(store.IsEnabled ? "check_circle" : "cancel")" Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />';
+        const options: Partial<HtmlFormattingOptions> = {
+            attributeWrap: "normal",
+            attributeStyle: "on_different_lines",
+            attributeIndent: "double_indent",
+            indentation: { style: "space", size: 3, tabWidth: 3 },
+            maxLineLength: 80,
+        };
+        const expected =
+            "<RadzenIcon\n" +
+            '      Icon="@(store.IsEnabled ? "check_circle" : "cancel")"\n' +
+            '      Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />';
+
+        const result = format(source, options);
+        assert.equal(result, expected);
+        assert.equal(format(result, options), expected);
+    });
+
     it("handles declarations, comments, boolean attributes, unquoted values, and incomplete tags safely", () => {
         const source = '<!DOCTYPE html><!-- <Fake A = "1"> --></orphan><input disabled value=test><broken';
         assert.equal(

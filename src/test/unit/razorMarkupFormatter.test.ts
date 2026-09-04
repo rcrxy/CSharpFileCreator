@@ -118,6 +118,44 @@ describe("Razor markup formatting pipeline", () => {
         assert.match(result, /^                               Frozen="true" \/>$/m);
     });
 
+    it("preserves Razor expression strings while wrapping attributes in nested component templates", () => {
+        const source = [
+            "<Columns>",
+            '<RadzenDataGridColumn Property="@nameof(StoreEntity.IsEnabled)" Title="启用状态" Frozen="true" Width="100px">',
+            '<Template Context="store">',
+            '<RadzenIcon Icon="@(store.IsEnabled ? "check_circle" : "cancel")" Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />',
+            "</Template>",
+            "</RadzenDataGridColumn>",
+            "</Columns>",
+        ].join("\n");
+        const options: Partial<HtmlFormattingOptions> = {
+            indentation: { style: "space", size: 3, tabWidth: 3 },
+            attributeStyle: "on_different_lines",
+            attributeIndent: "double_indent",
+            attributeWrap: "normal",
+            maxLineLength: 80,
+        };
+        const expected = [
+            "<Columns>",
+            "   <RadzenDataGridColumn",
+            '         Property="@nameof(StoreEntity.IsEnabled)"',
+            '         Title="启用状态"',
+            '         Frozen="true"',
+            '         Width="100px">',
+            '      <Template Context="store">',
+            "         <RadzenIcon",
+            '               Icon="@(store.IsEnabled ? "check_circle" : "cancel")"',
+            '               Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />',
+            "      </Template>",
+            "   </RadzenDataGridColumn>",
+            "</Columns>",
+        ].join("\n");
+
+        const result = format(source, options);
+        assert.equal(result, expected);
+        assert.equal(format(result, options), expected);
+    });
+
     it("does not indent or normalize configured protected element contents", () => {
         const source =
             "<div>\n<pre>  first   value\n    second </pre>\n<textarea> third   value </textarea>\n<span>After</span>\n</div>";

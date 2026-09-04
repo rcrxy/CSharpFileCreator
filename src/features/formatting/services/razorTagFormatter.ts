@@ -401,14 +401,7 @@ function parseAttributes(source: string): TagAttribute[] {
 function findAttributeValueEnd(source: string, start: number): number {
     const quote = source[start] === '"' || source[start] === "'" ? source[start] : undefined;
     if (quote) {
-        let cursor = start + 1;
-        while (cursor < source.length) {
-            if (source[cursor] === quote) {
-                return cursor + 1;
-            }
-            cursor++;
-        }
-        return source.length;
+        return findQuotedAttributeValueEnd(source, start);
     }
 
     let cursor = start;
@@ -477,20 +470,116 @@ function normalizeTagHeaderSpaces(tag: string): string {
 }
 
 function findTagEnd(source: string, start: number): number {
-    let quote: string | undefined;
     for (let index = start; index < source.length; index++) {
         const character = source[index];
-        if (quote) {
-            if (character === quote) {
-                quote = undefined;
-            }
-        } else if (character === '"' || character === "'") {
-            quote = character;
+        if (character === '"' || character === "'") {
+            index = findQuotedAttributeValueEnd(source, index) - 1;
         } else if (character === ">") {
             return index;
         }
     }
     return -1;
+}
+
+function findQuotedAttributeValueEnd(source: string, start: number): number {
+    const quote = source[start];
+    if (source[start + 1] === "@" && source[start + 2] === "(") {
+        const expressionEnd = findCSharpExpressionEnd(source, start + 2);
+        if (expressionEnd >= 0 && source[expressionEnd + 1] === quote) {
+            return expressionEnd + 2;
+        }
+    }
+
+    for (let cursor = start + 1; cursor < source.length; cursor++) {
+        if (source[cursor] === quote) {
+            return cursor + 1;
+        }
+    }
+    return source.length;
+}
+
+function findCSharpExpressionEnd(source: string, openingParenthesis: number): number {
+    let depth = 0;
+    let mode: "normal" | "blockComment" | "regularString" | "verbatimString" | "char" | "rawString" = "normal";
+    let rawQuoteCount = 0;
+
+    for (let index = openingParenthesis; index < source.length; index++) {
+        const character = source[index];
+        const nextCharacter = source[index + 1];
+
+        if (mode === "blockComment") {
+            if (character === "*" && nextCharacter === "/") {
+                mode = "normal";
+                index++;
+            }
+            continue;
+        }
+        if (mode === "rawString") {
+            if (character === '"' && countCharacterRun(source, index, '"') >= rawQuoteCount) {
+                index += rawQuoteCount - 1;
+                mode = "normal";
+            }
+            continue;
+        }
+        if (mode === "verbatimString") {
+            if (character === '"' && nextCharacter === '"') {
+                index++;
+            } else if (character === '"') {
+                mode = "normal";
+            }
+            continue;
+        }
+        if (mode === "regularString" || mode === "char") {
+            if (character === "\\") {
+                index++;
+            } else if ((mode === "regularString" && character === '"') || (mode === "char" && character === "'")) {
+                mode = "normal";
+            }
+            continue;
+        }
+
+        if (character === "/" && nextCharacter === "/") {
+            const lineEnd = source.slice(index + 2).search(/\r\n|\n|\r/);
+            index = lineEnd < 0 ? source.length : index + lineEnd + 1;
+            continue;
+        }
+        if (character === "/" && nextCharacter === "*") {
+            mode = "blockComment";
+            index++;
+            continue;
+        }
+
+        const quoteCount = character === '"' ? countCharacterRun(source, index, '"') : 0;
+        if (quoteCount >= 3) {
+            mode = "rawString";
+            rawQuoteCount = quoteCount;
+            index += quoteCount - 1;
+        } else if (character === "@" && nextCharacter === '"') {
+            mode = "verbatimString";
+            index++;
+        } else if (character === '"') {
+            mode = "regularString";
+        } else if (character === "'") {
+            mode = "char";
+        } else if (character === "(") {
+            depth++;
+        } else if (character === ")") {
+            depth--;
+            if (depth === 0) {
+                return index;
+            }
+        }
+    }
+
+    return -1;
+}
+
+function countCharacterRun(source: string, start: number, character: string): number {
+    let count = 0;
+    while (source[start + count] === character) {
+        count++;
+    }
+    return count;
 }
 
 function getLineIndent(source: string, index: number): string {
