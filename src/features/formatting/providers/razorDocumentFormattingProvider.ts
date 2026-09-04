@@ -62,6 +62,8 @@ export class RazorDocumentFormattingProvider
             const source = document.getText();
             const formatted = formatRazorMarkup(source, {
                 indentation: editorConfig.html.indentation,
+                csharpIndentation: editorConfig.csharpIndentation,
+                csharpNewLines: editorConfig.csharpNewLines,
                 html: editorConfig.html,
                 lineEnding: editorConfig.lineEnding,
                 insertFinalNewline: editorConfig.insertFinalNewline,

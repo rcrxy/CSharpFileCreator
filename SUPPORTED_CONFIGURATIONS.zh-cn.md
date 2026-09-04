@@ -58,6 +58,10 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 `CSharpCodeFormatter` 接口复用同一个 C# 格式化器。`registerFormattingFeature` 也可以接收自定义
 `CSharpCodeFormatter`，用于替换 Razor 内嵌 C# 的格式化实现。
 
+`csharp_indent_block_contents` 同样应用于 Razor 控制块内的 C# 语句和标记。支持的控制结构包括
+`@if`/`else if`/`else`、`@for`、`@foreach`、`@while`、`@switch`、`@using`、`@lock`、
+`@try`/`catch`/`finally` 和 `@do`/`while`。启用该属性时，块内容会额外增加一级缩进。
+
 ### C# 换行
 
 | 属性                                | 支持的值                                         | 默认值 |
@@ -70,6 +74,11 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 支持的大括号上下文包括 `accessors`、`anonymous_methods`、`anonymous_types`、`control_blocks`、`events`、
 `indexers`、`lambdas`、`local_functions`、`methods`、`object_collection_array_initializers`、`properties` 和
 `types`。
+
+Razor 控制块同样应用这些换行规则。其左花括号使用 `csharp_new_line_before_open_brace` 的
+`control_blocks` 上下文；`csharp_new_line_before_else`、`csharp_new_line_before_catch` 和
+`csharp_new_line_before_finally` 分别控制连续关键字是否与前一个右花括号同行。Razor `@do`/`while` 固定格式化为
+`} while (...);`。
 
 ### C# 空格
 
