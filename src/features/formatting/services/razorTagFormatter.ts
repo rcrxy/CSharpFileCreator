@@ -59,8 +59,8 @@ function formatTag(tag: ParsedTag, baseIndent: string, options: HtmlFormattingOp
         options.attributeStyle === "first_attribute_on_single_line" && attributes.length === 1
             ? false
             : options.attributeWrap === "off"
-            ? options.attributeStyle !== "on_single_line"
-            : shouldWrap || options.attributeWrap === "on_every_item" || options.attributeWrap === "split_into_lines";
+              ? options.attributeStyle !== "on_single_line"
+              : shouldWrap;
 
     if (!shouldUseMultilineStyle) {
         return singleLine;

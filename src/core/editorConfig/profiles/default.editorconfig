@@ -44,6 +44,7 @@ html_spaces_around_eq_in_attribute = false
 html_space_after_last_attribute = false
 html_space_before_self_closing = true
 html_attribute_style = on_single_line
+html_attribute_wrap = off
 html_attribute_indent = single_indent
 html_max_blank_lines_between_tags = 1
 html_linebreak_before_all_elements = false

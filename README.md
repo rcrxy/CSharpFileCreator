@@ -27,6 +27,8 @@ Configuration reference: [English](SUPPORTED_CONFIGURATIONS.md) | [简体中文]
 - Formats Razor and CSHTML tags using ReSharper/Rider-compatible `html_*` rule names.
 - Supports attribute spacing, attribute layout, multiline attribute indentation, element line breaks, blank-line limits,
 	self-closing tag spacing, and whitespace-sensitive element protection.
+- Supports `html_attribute_wrap = off` and `normal`; `normal` wraps Razor/HTML attributes when the formatted opening tag
+	exceeds `max_line_length`.
 - Accepts compatible `resharper_html_*` property names while documenting the unprefixed `html_*` form.
 - Reuses the C# formatter for Razor `@code` and `@functions` blocks.
 - Protects embedded C# while parsing tags so generics and comparison operators are not mistaken for markup.
@@ -50,8 +52,10 @@ defaults, compatibility aliases, and language-specific priority rules.
 
 The formatter implements the documented rule set with syntax-aware lexical protection, but it is not a replacement
 for the complete Roslyn or JetBrains syntax tree. Unsupported or ambiguous constructs are left unchanged where
-possible. `max_line_length` currently wraps C# at safe comma and binary-operator boundaries; it does not wrap Razor
-markup attributes.
+possible. `max_line_length` currently wraps C# at safe comma and binary-operator boundaries and, with
+`html_attribute_wrap = normal`, wraps Razor markup attributes when the formatted opening tag exceeds the configured
+visual width. The policies `on_every_item` and `split_into_lines` are parsed for compatibility but are not currently
+applied.
 
 ## Project Structure
 

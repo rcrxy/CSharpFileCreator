@@ -32,14 +32,15 @@ The general resolution order is:
 | `indent_style` | `space`, `tab`          | Selects spaces or tab characters for each indentation level.                            |
 | `indent_size`  | Positive integer, `tab` | Sets the logical indentation size. When set to `tab`, the resolved `tab_width` is used. |
 | `tab_width`    | Positive integer        | Sets the tab width and resolves the size of `indent_size = tab`.                        |
-| `max_line_length` | Positive integer, `off` | Wraps C# at safe comma and binary-operator boundaries. `off` disables line-length wrapping. |
+| `max_line_length` | Positive integer, `off` | Wraps C# at safe comma and binary-operator boundaries and, when HTML wrapping is enabled, wraps long Razor/HTML opening tags. `off` disables length-based wrapping. |
 | `end_of_line`  | `lf`, `crlf`            | Normalizes document line endings to the configured newline style.                       |
 | `insert_final_newline` | `true`, `false` | Ensures the file ends with or without a final newline.                              |
 | `trim_trailing_whitespace` | `true`, `false` | Removes trailing spaces and tabs before line breaks when enabled.               |
 | `charset` | `utf-8`, `utf-8-bom` | Adds or removes the UTF-8 BOM when formatting. Other EditorConfig charset values are parsed but do not trigger file transcoding. |
 
 These properties currently apply to Razor and C# document formatting. `max_line_length` currently wraps C# documents
-and C# code inside Razor `@code` and `@functions` blocks; it does not wrap Razor markup attributes.
+and C# code inside Razor `@code` and `@functions` blocks. Razor/HTML markup attributes use it when
+`html_attribute_wrap = normal`.
 
 For C# **Format Document**, all properties in this table are applied. **Format Selection** applies indentation and
 `trim_trailing_whitespace` only within the selected full lines; it does not change document-wide line endings, the
@@ -110,6 +111,8 @@ wins.
 | `html_space_after_last_attribute`                              | `true`, `false`                                                                          | `false`          | Controls the space between the last attribute and `>`.                                                                 |
 | `html_space_before_self_closing`                               | `true`, `false`                                                                          | `true`           | Controls the space before `/>`.                                                                                        |
 | `html_attribute_style`                                         | `on_single_line`, `first_attribute_on_single_line`, `on_different_lines`, `do_not_touch` | `on_single_line` | Controls attribute line layout.                                                                                        |
+| `html_attribute_wrap`                                          | `off`, `normal`, `on_every_item`, `split_into_lines`                                     | `off`            | Controls length-based attribute wrapping. `normal` keeps a formatted opening tag on one line when it fits and applies `html_attribute_style` after it exceeds `max_line_length`. `on_every_item` and `split_into_lines` are parsed for compatibility but not currently applied. |
+| `ij_html_attribute_wrap`                                       | `off`, `normal`, `on_every_item`, `split_into_lines`                                     | `off`            | Compatibility alias for `html_attribute_wrap`; the standard key takes priority. The two non-applied values remain parse-only. |
 | `html_attribute_indent`                                        | `single_indent`, `double_indent`, `align_by_first_attribute`                             | `single_indent`  | Controls indentation of multiline attributes.                                                                          |
 | `html_max_blank_lines_between_tags`                            | Non-negative integer                                                                     | `1`              | Limits blank lines between adjacent tags.                                                                              |
 | `html_linebreak_before_all_elements`                           | `true`, `false`                                                                          | `false`          | Places every element on a new line when enabled.                                                                       |

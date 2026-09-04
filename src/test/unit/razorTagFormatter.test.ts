@@ -90,6 +90,12 @@ describe("Razor tag formatting", () => {
         assert.equal(format(once, { attributeWrap: "normal", maxLineLength: undefined }), once);
     });
 
+    it("parses but does not apply unsupported wrap policies", () => {
+        const source = '<Widget A="1" B="2" />';
+        assert.equal(format(source, { attributeWrap: "on_every_item", maxLineLength: 1 }), source);
+        assert.equal(format(source, { attributeWrap: "split_into_lines", maxLineLength: 1 }), source);
+    });
+
     it("supports different-lines attribute layout and all indent modes", () => {
         assert.equal(
             format('<Widget A="1" B="2"/>', { attributeStyle: "on_different_lines" }),
