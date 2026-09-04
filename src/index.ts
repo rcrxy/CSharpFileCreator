@@ -1,15 +1,16 @@
 import * as vscode from "vscode";
 import type { ExtensionFeature } from "./core/extensionFeature";
 import { registerFileCreationFeature } from "./features/fileCreation";
+import { registerFormattingFeature } from "./features/formatting";
 
-const features: readonly ExtensionFeature[] = [registerFileCreationFeature];
+const features: readonly ExtensionFeature[] = [registerFileCreationFeature, registerFormattingFeature];
 
 /**
  * 激活扩展，并依次注册各个独立功能模块。
  */
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
     for (const registerFeature of features) {
-        registerFeature(context);
+        await registerFeature(context);
     }
 }
 
