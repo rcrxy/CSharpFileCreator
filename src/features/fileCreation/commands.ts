@@ -1,16 +1,16 @@
 import type { CSharpTemplateKind } from "./models/csharpTemplate";
 
 export const createCSharpFileCommands: Readonly<Record<CSharpTemplateKind, string>> = {
-    class: "csharpfilecreator.newClass",
-    interface: "csharpfilecreator.newInterface",
-    record: "csharpfilecreator.newRecord",
-    struct: "csharpfilecreator.newStruct",
-    enum: "csharpfilecreator.newEnum",
-    abstractClass: "csharpfilecreator.newAbstractClass",
-    staticClass: "csharpfilecreator.newStaticClass",
+    class: "csharpworkbench.newClass",
+    interface: "csharpworkbench.newInterface",
+    record: "csharpworkbench.newRecord",
+    struct: "csharpworkbench.newStruct",
+    enum: "csharpworkbench.newEnum",
+    abstractClass: "csharpworkbench.newAbstractClass",
+    staticClass: "csharpworkbench.newStaticClass",
 };
 
 export const createRazorFileCommands = {
-    single: "csharpfilecreator.newRazorComponent",
-    componentFiles: "csharpfilecreator.newRazorComponentFiles",
+    single: "csharpworkbench.newRazorComponent",
+    componentFiles: "csharpworkbench.newRazorComponentFiles",
 } as const;

@@ -60,91 +60,91 @@
             "explorer/context": [
                 {
                     "when": "explorerResourceIsFolder",
-                    "submenu": "csharpfilecreator.newCSharpFile",
+                    "submenu": "csharpworkbench.newCSharpFile",
                     "group": "navigation@5"
                 }
             ],
-            "csharpfilecreator.newCSharpFile": [
+            "csharpworkbench.newCSharpFile": [
                 {
-                    "command": "csharpfilecreator.newClass",
+                    "command": "csharpworkbench.newClass",
                     "group": "templates@1"
                 },
                 {
-                    "command": "csharpfilecreator.newInterface",
+                    "command": "csharpworkbench.newInterface",
                     "group": "templates@2"
                 },
                 {
-                    "command": "csharpfilecreator.newRecord",
+                    "command": "csharpworkbench.newRecord",
                     "group": "templates@3"
                 },
                 {
-                    "command": "csharpfilecreator.newStruct",
+                    "command": "csharpworkbench.newStruct",
                     "group": "templates@4"
                 },
                 {
-                    "command": "csharpfilecreator.newEnum",
+                    "command": "csharpworkbench.newEnum",
                     "group": "templates@5"
                 },
                 {
-                    "command": "csharpfilecreator.newAbstractClass",
+                    "command": "csharpworkbench.newAbstractClass",
                     "group": "templates@6"
                 },
                 {
-                    "command": "csharpfilecreator.newStaticClass",
+                    "command": "csharpworkbench.newStaticClass",
                     "group": "templates@7"
                 },
                 {
-                    "command": "csharpfilecreator.newRazorComponent",
+                    "command": "csharpworkbench.newRazorComponent",
                     "group": "templatesRazor@1"
                 },
                 {
-                    "command": "csharpfilecreator.newRazorComponentFiles",
+                    "command": "csharpworkbench.newRazorComponentFiles",
                     "group": "templatesRazor@2"
                 }
             ]
         },
         "submenus": [
             {
-                "id": "csharpfilecreator.newCSharpFile",
+                "id": "csharpworkbench.newCSharpFile",
                 "label": "%newfile%"
             }
         ],
         "commands": [
             {
                 "title": "%class%",
-                "command": "csharpfilecreator.newClass"
+                "command": "csharpworkbench.newClass"
             },
             {
                 "title": "%interface%",
-                "command": "csharpfilecreator.newInterface"
+                "command": "csharpworkbench.newInterface"
             },
             {
                 "title": "%record%",
-                "command": "csharpfilecreator.newRecord"
+                "command": "csharpworkbench.newRecord"
             },
             {
                 "title": "%struct%",
-                "command": "csharpfilecreator.newStruct"
+                "command": "csharpworkbench.newStruct"
             },
             {
                 "title": "%enum%",
-                "command": "csharpfilecreator.newEnum"
+                "command": "csharpworkbench.newEnum"
             },
             {
                 "title": "%abstractClass%",
-                "command": "csharpfilecreator.newAbstractClass"
+                "command": "csharpworkbench.newAbstractClass"
             },
             {
                 "title": "%staticClass%",
-                "command": "csharpfilecreator.newStaticClass"
+                "command": "csharpworkbench.newStaticClass"
             },
             {
                 "title": "%razorComponent%",
-                "command": "csharpfilecreator.newRazorComponent"
+                "command": "csharpworkbench.newRazorComponent"
             },
             {
                 "title": "%razorComponentFiles%",
-                "command": "csharpfilecreator.newRazorComponentFiles"
+                "command": "csharpworkbench.newRazorComponentFiles"
             }
         ]
     }

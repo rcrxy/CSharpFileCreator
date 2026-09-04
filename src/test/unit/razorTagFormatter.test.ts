@@ -48,28 +48,35 @@ describe("Razor tag formatting", () => {
     it("supports different-lines attribute layout and all indent modes", () => {
         assert.equal(
             format('<Widget A="1" B="2"/>', { attributeStyle: "on_different_lines" }),
-            '<Widget\n    A="1"\n    B="2"\n/>',
+            '<Widget\n    A="1"\n    B="2" />',
         );
         assert.equal(
             format('  <Widget A="1" B="2"/>', {
                 attributeStyle: "on_different_lines",
                 attributeIndent: "double_indent",
             }),
-            '  <Widget\n          A="1"\n          B="2"\n  />',
+            '  <Widget\n          A="1"\n          B="2" />',
         );
         assert.equal(
             format('<Widget A="1" B="2"/>', {
                 attributeStyle: "on_different_lines",
                 attributeIndent: "align_by_first_attribute",
             }),
-            '<Widget\n        A="1"\n        B="2"\n/>',
+            '<Widget\n        A="1"\n        B="2" />',
         );
     });
 
     it("keeps the first attribute on the opening line when configured", () => {
         assert.equal(
             format('<Widget A="1" B="2"/>', { attributeStyle: "first_attribute_on_single_line" }),
-            '<Widget A="1"\n    B="2"\n/>',
+            '<Widget A="1"\n    B="2" />',
+        );
+        assert.equal(
+            format('<div class="root">', {
+                attributeStyle: "first_attribute_on_single_line",
+                spaceAfterLastAttribute: true,
+            }),
+            '<div class="root" >',
         );
     });
 
@@ -85,7 +92,7 @@ describe("Razor tag formatting", () => {
                 attributeStyle: "on_different_lines",
                 lineBreakBeforeMultilineElements: true,
             }),
-            'Text\n<Widget\n    A="1"\n    B="2"\n/>',
+            'Text\n<Widget\n    A="1"\n    B="2" />',
         );
     });
 

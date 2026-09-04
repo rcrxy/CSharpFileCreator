@@ -42,6 +42,61 @@ describe("Razor markup formatting pipeline", () => {
         assert.equal(format("<div><span>Value</span></div>"), "<div>\n  <span>Value</span>\n</div>");
     });
 
+    it("preserves align-by-first-attribute indentation after nesting tags", () => {
+        const source = [
+            '<div class="store-index">',
+            '<RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false">',
+            "<Columns>",
+            '<RadzenDataGridColumn Property="@nameof(StoreEntity.Name)" Title="First Name" Frozen="true" />',
+            "</Columns>",
+            "</RadzenDataGrid>",
+            "</div>",
+        ].join("\n");
+        const result = format(source, {
+            indentation: { style: "space", size: 4, tabWidth: 4 },
+            attributeStyle: "first_attribute_on_single_line",
+            attributeIndent: "align_by_first_attribute",
+            spaceAfterLastAttribute: true,
+        });
+
+        assert.match(result, /^    <RadzenDataGrid AllowFiltering="true"$/m);
+        assert.match(result, /^                    AllowColumnResize="true"$/m);
+        assert.match(result, /^                    AllowAlternatingRows="false" >$/m);
+        assert.match(result, /^            <RadzenDataGridColumn Property="@nameof\(StoreEntity.Name\)"$/m);
+        assert.match(result, /^                                  Title="First Name"$/m);
+        assert.match(result, /^                                  Frozen="true" \/>$/m);
+        assert.match(result, /^<div class="store-index" >$/m);
+    });
+
+    it("normalizes previously misaligned multiline attributes without reusing old parent indentation", () => {
+        const source = [
+            '<div class="store-index" >',
+            '   <RadzenDataGrid AllowFiltering="true"',
+            '                      AllowColumnResize="true"',
+            '                      AllowAlternatingRows="false" >',
+            "      <Columns>",
+            '         <RadzenDataGridColumn Property="@nameof(StoreEntity.Name)"',
+            '                                        Title="First Name"',
+            '                                        Frozen="true" />',
+            "      </Columns>",
+            "   </RadzenDataGrid>",
+            "</div>",
+        ].join("\n");
+        const result = format(source, {
+            indentation: { style: "space", size: 3, tabWidth: 3 },
+            attributeStyle: "first_attribute_on_single_line",
+            attributeIndent: "align_by_first_attribute",
+            spaceAfterLastAttribute: true,
+        });
+
+        assert.match(result, /^   <RadzenDataGrid AllowFiltering="true"$/m);
+        assert.match(result, /^                   AllowColumnResize="true"$/m);
+        assert.match(result, /^                   AllowAlternatingRows="false" >$/m);
+        assert.match(result, /^         <RadzenDataGridColumn Property="@nameof\(StoreEntity.Name\)"$/m);
+        assert.match(result, /^                               Title="First Name"$/m);
+        assert.match(result, /^                               Frozen="true" \/>$/m);
+    });
+
     it("does not indent or normalize configured protected element contents", () => {
         const source =
             "<div>\n<pre>  first   value\n    second </pre>\n<textarea> third   value </textarea>\n<span>After</span>\n</div>";

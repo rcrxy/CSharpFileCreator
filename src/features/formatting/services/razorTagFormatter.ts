@@ -59,15 +59,25 @@ function formatTag(tag: ParsedTag, baseIndent: string, options: HtmlFormattingOp
 
     const attributeIndent = getAttributeIndent(baseIndent, tag.name, options);
     if (options.attributeStyle === "first_attribute_on_single_line") {
+        if (attributes.length === 1) {
+            return `<${tag.name} ${attributes[0]}${close}`;
+        }
+
         return `<${tag.name} ${attributes[0]}${attributes
             .slice(1)
-            .map(attribute => `${lineEnding}${attributeIndent}${attribute}`)
-            .join("")}${lineEnding}${baseIndent}${close.trimStart()}`;
+            .map((attribute, index, remainingAttributes) => {
+                const suffix = index === remainingAttributes.length - 1 ? close : "";
+                return `${lineEnding}${attributeIndent}${attribute}${suffix}`;
+            })
+            .join("")}`;
     }
 
     return `<${tag.name}${attributes
-        .map(attribute => `${lineEnding}${attributeIndent}${attribute}`)
-        .join("")}${lineEnding}${baseIndent}${close.trimStart()}`;
+        .map((attribute, index) => {
+            const suffix = index === attributes.length - 1 ? close : "";
+            return `${lineEnding}${attributeIndent}${attribute}${suffix}`;
+        })
+        .join("")}`;
 }
 
 function formatTagDelimiters(original: string, tag: ParsedTag, options: HtmlFormattingOptions): string {
