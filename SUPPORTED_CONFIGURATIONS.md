@@ -132,6 +132,32 @@ wins.
 | `html_preserve_spaces_inside_tags`                             | Comma-separated element names                                                            | `pre,textarea`   | Preserves the complete contents of the listed elements.                                                                |
 | `html_extra_spaces`                                            | `remove_all`, `leave_tabs`, `leave_multiple`, `leave_all`                                | `remove_all`     | Removes redundant horizontal tag whitespace for `remove_all`; the `leave_*` values preserve existing extra whitespace. |
 
+#### Attribute Wrapping
+
+`html_attribute_wrap` decides whether an opening tag enters a multiline layout. `html_attribute_style` and
+`html_attribute_indent` decide how attributes are arranged and indented after that transition.
+
+With `html_attribute_wrap = normal`, the formatter first builds a normalized single-line candidate without relying on
+the original tag's line breaks. Its visual width includes the tag's existing base indentation, and tabs advance to the
+next `tab_width` boundary. The candidate remains on one line when its width is less than or equal to
+`max_line_length`; it enters the configured multiline layout only when its width exceeds the limit.
+
+The multiline layouts are:
+
+- `on_single_line`: places all attributes together on one indented continuation line.
+- `first_attribute_on_single_line`: keeps the first attribute beside the tag name and places each remaining attribute
+	on a separate line.
+- `on_different_lines`: places every attribute on a separate line.
+- `do_not_touch`: preserves the existing attribute line structure.
+
+`html_attribute_indent` controls the continuation indentation for all multiline layouts. Existing multiline tags are
+collapsed when their normalized single-line candidate fits. A single overlong attribute value is never split, and the
+formatter does not independently move `>` or `/>` to another line. `max_line_length = off` disables length-based
+attribute wrapping.
+
+The compatibility values `on_every_item` and `split_into_lines` are parsed but currently add no wrapping behavior.
+Existing `html_attribute_style` behavior still applies when either value is configured.
+
 HTML-specific indentation aliases are also supported:
 
 ```ini
@@ -198,6 +224,21 @@ Use tabs with a width of four columns:
 indent_style = tab
 indent_size = tab
 tab_width = 4
+```
+
+Wrap Razor/HTML attributes only when the normalized opening tag exceeds 120 columns, keep the first attribute beside
+the tag name, and align continuation attributes with it:
+
+```ini
+[*.razor]
+indent_style = space
+indent_size = 3
+tab_width = 3
+max_line_length = 120
+
+html_attribute_wrap = normal
+html_attribute_style = first_attribute_on_single_line
+html_attribute_indent = align_by_first_attribute
 ```
 
 Wrap C# code at 120 columns, or disable formatter-driven line wrapping:

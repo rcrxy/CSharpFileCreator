@@ -58,7 +58,7 @@ function formatTag(tag: ParsedTag, baseIndent: string, options: HtmlFormattingOp
     const shouldUseMultilineStyle =
         options.attributeStyle === "first_attribute_on_single_line" && attributes.length === 1
             ? false
-            : options.attributeWrap === "off"
+            : options.attributeWrap !== "normal"
               ? options.attributeStyle !== "on_single_line"
               : shouldWrap;
 
@@ -85,6 +85,10 @@ function formatMultilineTag(
     lineEnding: string,
 ): string {
     const attributeIndent = getAttributeIndent(baseIndent, tag.name, options);
+    if (options.attributeStyle === "on_single_line") {
+        return `<${tag.name}${lineEnding}${attributeIndent}${attributes.join(" ")}${close}`;
+    }
+
     if (options.attributeStyle === "first_attribute_on_single_line" && attributes.length > 1) {
         return `<${tag.name} ${attributes[0]}${attributes
             .slice(1)

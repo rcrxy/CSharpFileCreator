@@ -127,6 +127,29 @@ Razor 控制块同样应用这些换行规则。其左花括号使用 `csharp_ne
 | `html_preserve_spaces_inside_tags`                             | 以逗号分隔的元素名                                                                       | `pre,textarea`   | 完整保留所列元素的内容。                                            |
 | `html_extra_spaces`                                            | `remove_all`、`leave_tabs`、`leave_multiple`、`leave_all`                                | `remove_all`     | `remove_all` 删除标签中的冗余水平空白；`leave_*` 保留已有额外空白。 |
 
+#### 属性换行
+
+`html_attribute_wrap` 决定开始标签是否进入多行布局；进入多行后，`html_attribute_style` 和
+`html_attribute_indent` 分别决定属性排列方式和缩进方式。
+
+使用 `html_attribute_wrap = normal` 时，格式化器会先生成规范化的单行候选，不根据原始标签是否已经换行作出
+判断。视觉列宽包含标签当前的基础缩进，Tab 按 `tab_width` 展开到下一个制表位。单行候选宽度小于或等于
+`max_line_length` 时保持单行，只有超过限制时才进入配置的多行布局。
+
+多行布局语义如下：
+
+- `on_single_line`：所有属性共同放在一个有缩进的续行中。
+- `first_attribute_on_single_line`：首个属性与标签名同行，其余属性各占一行。
+- `on_different_lines`：每个属性各占一行。
+- `do_not_touch`：保留现有属性换行结构。
+
+`html_attribute_indent` 控制所有多行布局的续行缩进。已有多行标签的规范化单行候选未超长时会恢复为单行。
+单个超长属性值不会被拆分，格式化器也不会单独将 `>` 或 `/>` 移到新行。`max_line_length = off` 会关闭
+基于长度的属性换行。
+
+兼容值 `on_every_item` 和 `split_into_lines` 可以被解析，但目前不会增加换行行为；配置这些值时，已有的
+`html_attribute_style` 行为仍然生效。
+
 还支持以下 HTML 专属缩进别名：
 
 ```ini
@@ -193,6 +216,20 @@ indent_size = 2
 indent_style = tab
 indent_size = tab
 tab_width = 4
+```
+
+仅当规范化后的 Razor/HTML 开始标签超过 120 列时换行，首个属性与标签名同行，其余属性与首个属性对齐：
+
+```ini
+[*.razor]
+indent_style = space
+indent_size = 3
+tab_width = 3
+max_line_length = 120
+
+html_attribute_wrap = normal
+html_attribute_style = first_attribute_on_single_line
+html_attribute_indent = align_by_first_attribute
 ```
 
 将 C# 代码限制为 120 列，或者关闭格式化器主动换行：
