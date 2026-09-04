@@ -3,7 +3,9 @@ import { resolveEditorConfig, type EditorConfigFallback } from "../../../core/ed
 import type { CSharpCodeFormatter } from "../csharpCodeFormatter";
 import { formatRazorMarkup } from "../services/razorMarkupFormatter";
 
-export class RazorDocumentFormattingProvider implements vscode.DocumentFormattingEditProvider {
+export class RazorDocumentFormattingProvider
+    implements vscode.DocumentFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider
+{
     constructor(
         private readonly log: vscode.LogOutputChannel,
         private readonly csharpFormatter?: CSharpCodeFormatter,
@@ -14,9 +16,45 @@ export class RazorDocumentFormattingProvider implements vscode.DocumentFormattin
         options: vscode.FormattingOptions,
         token: vscode.CancellationToken,
     ): Promise<vscode.TextEdit[]> {
+        return this.provideFullDocumentFormattingEdits(document, options, token, "document");
+    }
+
+    async provideDocumentRangeFormattingEdits(
+        document: vscode.TextDocument,
+        range: vscode.Range,
+        options: vscode.FormattingOptions,
+        token: vscode.CancellationToken,
+    ): Promise<vscode.TextEdit[]> {
+        this.log.info(
+            `Razor range formatting requested for ${document.uri.toString()} ` +
+                `(range=${formatRange(range)}); formatting the complete document for structural consistency.`,
+        );
+        return this.provideFullDocumentFormattingEdits(document, options, token, "range");
+    }
+
+    async provideDocumentRangesFormattingEdits(
+        document: vscode.TextDocument,
+        ranges: vscode.Range[],
+        options: vscode.FormattingOptions,
+        token: vscode.CancellationToken,
+    ): Promise<vscode.TextEdit[]> {
+        this.log.info(
+            `Razor multi-range formatting requested for ${document.uri.toString()} ` +
+                `(ranges=${ranges.map(formatRange).join(", ")}); formatting the complete document once.`,
+        );
+        return this.provideFullDocumentFormattingEdits(document, options, token, "ranges");
+    }
+
+    private async provideFullDocumentFormattingEdits(
+        document: vscode.TextDocument,
+        options: vscode.FormattingOptions,
+        token: vscode.CancellationToken,
+        trigger: "document" | "range" | "ranges",
+    ): Promise<vscode.TextEdit[]> {
         const startedAt = performance.now();
         this.log.info(
-            `Formatting started: ${document.uri.toString()} (language=${document.languageId}, version=${document.version}).`,
+            `Formatting started: ${document.uri.toString()} ` +
+                `(trigger=${trigger}, language=${document.languageId}, version=${document.version}).`,
         );
 
         try {
@@ -58,6 +96,10 @@ export class RazorDocumentFormattingProvider implements vscode.DocumentFormattin
             throw error;
         }
     }
+}
+
+function formatRange(range: vscode.Range): string {
+    return `${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}`;
 }
 
 function formatElapsedTime(startedAt: number): string {

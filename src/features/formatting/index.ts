@@ -12,7 +12,7 @@ export async function registerFormattingFeature(
     initializeDefaultEditorConfigProfile(await vscode.workspace.fs.readFile(defaultProfileUri));
     const log = vscode.window.createOutputChannel("C# Workbench", { log: true });
     const csharpFormatter = new CSharpDocumentFormattingProvider(log);
-    const razorFormattingProvider = vscode.languages.registerDocumentFormattingEditProvider(
+    const razorFormattingProvider = vscode.languages.registerDocumentRangeFormattingEditProvider(
         [{ language: "aspnetcorerazor" }, { language: "razor" }],
         new RazorDocumentFormattingProvider(log, razorCSharpFormatter ?? csharpFormatter),
     );
