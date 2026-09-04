@@ -2,7 +2,7 @@
     "name": "csharp-workbench",
     "displayName": "C# Workbench",
     "description": "C# and Razor development tools for VS Code, including project-aware file creation and EditorConfig-based formatting.",
-    "version": "0.0.2",
+    "version": "0.0.21",
     "publisher": "zeco",
     "author": "zeco",
     "license": "MIT",
@@ -14,6 +14,14 @@
         "Formatters",
         "Other"
     ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/rcrxy/csharp-workbench.git"
+    },
+    "bugs": {
+        "url": "https://github.com/rcrxy/csharp-workbench/issues"
+    },
+    "homepage": "https://github.com/rcrxy/csharp-workbench#readme",
     "activationEvents": [
         "onLanguage:csharp",
         "onLanguage:aspnetcorerazor",
