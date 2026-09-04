@@ -123,6 +123,8 @@ describe("EditorConfig options", () => {
                 indent_size: 6,
                 resharper_html_indent_size: 7,
                 html_attribute_style: "on_different_lines",
+                html_attribute_wrap: "normal",
+                ij_html_attribute_wrap: "split_into_lines",
                 resharper_html_attribute_style: "do_not_touch",
                 html_spaces_around_eq_in_attribute: true,
                 html_no_indent_inside_elements: "pre, code",
@@ -131,18 +133,22 @@ describe("EditorConfig options", () => {
         );
         assert.deepEqual(languageSpecific.indentation, { style: "space", size: 2, tabWidth: 3 });
         assert.equal(languageSpecific.attributeStyle, "on_different_lines");
+        assert.equal(languageSpecific.attributeWrap, "normal");
         assert.equal(languageSpecific.spacesAroundAttributeEquals, true);
         assert.deepEqual([...languageSpecific.noIndentInsideElements], ["pre", "code"]);
 
         const compatibility = resolveHtmlFormattingOptions(
             {
                 resharper_html_attribute_style: "first_attribute_on_single_line",
+                ij_html_attribute_wrap: "split_into_lines",
                 resharper_html_attribute_indent: "double_indent",
                 resharper_html_max_blank_lines_between_tags: "2",
             },
             fallback,
         );
         assert.equal(compatibility.attributeStyle, "first_attribute_on_single_line");
+        assert.equal(compatibility.attributeWrap, "split_into_lines");
+        assert.equal(compatibility.attributeWrap, "split_into_lines");
         assert.equal(compatibility.attributeIndent, "double_indent");
         assert.equal(compatibility.maxBlankLinesBetweenTags, 2);
         assert.deepEqual(compatibility.indentation, { style: "tab", size: 8, tabWidth: 8 });

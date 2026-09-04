@@ -14,6 +14,7 @@ import type {
     EditorConfigFallback,
     HtmlAttributeIndent,
     HtmlAttributeStyle,
+    HtmlAttributeWrapPolicy,
     HtmlExtraSpaces,
     HtmlFormattingOptions,
     IndentationOptions,
@@ -73,6 +74,7 @@ export function resolveHtmlFormattingOptions(
             ["on_single_line", "first_attribute_on_single_line", "on_different_lines", "do_not_touch"],
             "on_single_line",
         ),
+        attributeWrap: resolveHtmlWrapPolicy(properties, profile),
         attributeIndent: resolveHtmlEnum(
             properties,
             profile,
@@ -80,6 +82,7 @@ export function resolveHtmlFormattingOptions(
             ["single_indent", "double_indent", "align_by_first_attribute"],
             "single_indent",
         ),
+        maxLineLength: resolveMaxLineLength(properties.max_line_length, fallback.maxLineLength, profile.max_line_length),
         maxBlankLinesBetweenTags: resolveHtmlNonNegativeInteger(properties, profile, "html_max_blank_lines_between_tags", 1),
         lineBreakBeforeAllElements: resolveHtmlBoolean(properties, profile, "html_linebreak_before_all_elements", false),
         lineBreakBeforeMultilineElements: resolveHtmlBoolean(
@@ -161,6 +164,19 @@ function resolveHtmlEnum<T extends string>(
         typeof profileValue === "string" && values.includes(profileValue as T) ? (profileValue as T) : defaultValue;
     const value = resolveHtmlProperty(properties, name);
     return typeof value === "string" && values.includes(value as T) ? (value as T) : profileDefault;
+}
+
+function resolveHtmlWrapPolicy(properties: Readonly<Props>, profile: Readonly<Props>): HtmlAttributeWrapPolicy {
+    const values: readonly HtmlAttributeWrapPolicy[] = ["off", "normal", "on_every_item", "split_into_lines"];
+    const profileValue = profile.html_attribute_wrap ?? profile.ij_html_attribute_wrap;
+    const propertyValue = properties.html_attribute_wrap ?? properties.ij_html_attribute_wrap;
+    if (typeof propertyValue === "string" && values.includes(propertyValue as HtmlAttributeWrapPolicy)) {
+        return propertyValue as HtmlAttributeWrapPolicy;
+    }
+    if (typeof profileValue === "string" && values.includes(profileValue as HtmlAttributeWrapPolicy)) {
+        return profileValue as HtmlAttributeWrapPolicy;
+    }
+    return "off";
 }
 
 function resolveHtmlNonNegativeInteger(

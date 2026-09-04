@@ -53,16 +53,39 @@ function formatTag(tag: ParsedTag, baseIndent: string, options: HtmlFormattingOp
 
     const attributes = tag.attributes.map(attribute => formatAttribute(attribute, options));
     const close = getTagClose(tag, options);
-    if (options.attributeStyle === "on_single_line") {
-        return `<${tag.name} ${attributes.join(" ")}${close}`;
+    const singleLine = `<${tag.name} ${attributes.join(" ")}${close}`;
+    const shouldWrap = shouldWrapAttributes(singleLine, baseIndent, options);
+    const shouldUseMultilineStyle =
+        options.attributeStyle === "first_attribute_on_single_line" && attributes.length === 1
+            ? false
+            : options.attributeWrap === "off"
+            ? options.attributeStyle !== "on_single_line"
+            : shouldWrap || options.attributeWrap === "on_every_item" || options.attributeWrap === "split_into_lines";
+
+    if (!shouldUseMultilineStyle) {
+        return singleLine;
     }
 
-    const attributeIndent = getAttributeIndent(baseIndent, tag.name, options);
-    if (options.attributeStyle === "first_attribute_on_single_line") {
-        if (attributes.length === 1) {
-            return `<${tag.name} ${attributes[0]}${close}`;
-        }
+    return formatMultilineTag(tag, baseIndent, attributes, close, options, lineEnding);
+}
 
+function shouldWrapAttributes(singleLine: string, baseIndent: string, options: HtmlFormattingOptions): boolean {
+    if (options.attributeWrap !== "normal" || options.maxLineLength === undefined) {
+        return false;
+    }
+    return visualLength(baseIndent + singleLine, options.indentation.tabWidth) > options.maxLineLength;
+}
+
+function formatMultilineTag(
+    tag: ParsedTag,
+    baseIndent: string,
+    attributes: readonly string[],
+    close: string,
+    options: HtmlFormattingOptions,
+    lineEnding: string,
+): string {
+    const attributeIndent = getAttributeIndent(baseIndent, tag.name, options);
+    if (options.attributeStyle === "first_attribute_on_single_line" && attributes.length > 1) {
         return `<${tag.name} ${attributes[0]}${attributes
             .slice(1)
             .map((attribute, index, remainingAttributes) => {
@@ -78,6 +101,18 @@ function formatTag(tag: ParsedTag, baseIndent: string, options: HtmlFormattingOp
             return `${lineEnding}${attributeIndent}${attribute}${suffix}`;
         })
         .join("")}`;
+}
+
+function visualLength(value: string, tabWidth: number): number {
+    let column = 0;
+    for (const character of value) {
+        if (character === "\t") {
+            column += tabWidth - (column % tabWidth);
+        } else {
+            column++;
+        }
+    }
+    return column;
 }
 
 function formatTagDelimiters(original: string, tag: ParsedTag, options: HtmlFormattingOptions): string {

@@ -9,7 +9,9 @@ const defaults: HtmlFormattingOptions = {
     spaceAfterLastAttribute: false,
     spaceBeforeSelfClosing: true,
     attributeStyle: "on_single_line",
+    attributeWrap: "off",
     attributeIndent: "single_indent",
+    maxLineLength: 80,
     maxBlankLinesBetweenTags: 1,
     lineBreakBeforeAllElements: false,
     lineBreakBeforeMultilineElements: true,
@@ -43,6 +45,49 @@ describe("Razor tag formatting", () => {
             format('<Widget   A = "1"/>', { attributeStyle: "do_not_touch", extraSpaces: "leave_all" }),
             '<Widget   A="1" />',
         );
+    });
+
+    it("wraps normal attributes only after the visual line limit is exceeded", () => {
+        assert.equal(format('<Widget A="1" B="2" />', { attributeWrap: "normal", maxLineLength: 22 }), '<Widget A="1" B="2" />');
+        assert.equal(
+            format('<Widget A="1" B="2" />', { attributeWrap: "normal", maxLineLength: 21, attributeStyle: "on_different_lines" }),
+            '<Widget\n    A="1"\n    B="2" />',
+        );
+        assert.equal(format('<Widget A="a-long-value" />', { attributeWrap: "normal", maxLineLength: 5 }), '<Widget\n    A="a-long-value" />');
+        assert.equal(format('<Widget A="1" B="2" />', { attributeWrap: "normal", maxLineLength: undefined }), '<Widget A="1" B="2" />');
+        assert.equal(
+            format('<Widget @onclick="Handle" @bind-Value="Value" />', {
+                attributeWrap: "normal",
+                attributeStyle: "on_different_lines",
+                maxLineLength: 20,
+            }),
+            '<Widget\n    @onclick="Handle"\n    @bind-Value="Value" />',
+        );
+    });
+
+    it("accounts for indentation and tabs when wrapping", () => {
+        assert.equal(
+            format('\t<Widget A="1" B="2" />', {
+                attributeWrap: "normal",
+                maxLineLength: 25,
+                indentation: { style: "tab", size: 4, tabWidth: 4 },
+            }),
+            '\t<Widget\n\t\tA="1"\n\t\tB="2" />',
+        );
+    });
+
+    it("recovers existing multiline attributes when normal wrapping fits", () => {
+        assert.equal(
+            format('<Widget\n    A="1"\n    B="2" />', { attributeWrap: "normal", maxLineLength: 80 }),
+            '<Widget A="1" B="2" />',
+        );
+    });
+
+    it("keeps long tags single-line when max line length is off and is idempotent", () => {
+        const source = '<Widget A="a-very-long-value" B="another-long-value" />';
+        const once = format(source, { attributeWrap: "normal", maxLineLength: undefined });
+        assert.equal(once, source);
+        assert.equal(format(once, { attributeWrap: "normal", maxLineLength: undefined }), once);
     });
 
     it("supports different-lines attribute layout and all indent modes", () => {

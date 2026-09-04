@@ -62,6 +62,7 @@ export interface CSharpWrappingOptions {
 }
 
 export type HtmlAttributeStyle = "on_single_line" | "first_attribute_on_single_line" | "on_different_lines" | "do_not_touch";
+export type HtmlAttributeWrapPolicy = "off" | "normal" | "on_every_item" | "split_into_lines";
 export type HtmlAttributeIndent = "single_indent" | "double_indent" | "align_by_first_attribute";
 export type HtmlExtraSpaces = "remove_all" | "leave_tabs" | "leave_multiple" | "leave_all";
 
@@ -71,7 +72,9 @@ export interface HtmlFormattingOptions {
     readonly spaceAfterLastAttribute: boolean;
     readonly spaceBeforeSelfClosing: boolean;
     readonly attributeStyle: HtmlAttributeStyle;
+    readonly attributeWrap: HtmlAttributeWrapPolicy;
     readonly attributeIndent: HtmlAttributeIndent;
+    readonly maxLineLength?: number;
     readonly maxBlankLinesBetweenTags: number;
     readonly lineBreakBeforeAllElements: boolean;
     readonly lineBreakBeforeMultilineElements: boolean;
