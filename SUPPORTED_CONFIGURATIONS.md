@@ -1,5 +1,7 @@
 # Supported Configurations
 
+[简体中文](SUPPORTED_CONFIGURATIONS.zh-cn.md)
+
 This document records configuration properties that C# Workbench currently interprets and applies. A property being
 returned by the `editorconfig` parser does not mean that Workbench implements its behavior.
 
