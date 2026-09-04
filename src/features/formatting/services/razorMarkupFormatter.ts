@@ -1,9 +1,18 @@
-import type { Charset, HtmlFormattingOptions, IndentationOptions, LineEnding } from "../../../core/editorConfig";
+import type {
+    Charset,
+    CSharpIndentationOptions,
+    CSharpNewLineOptions,
+    HtmlFormattingOptions,
+    IndentationOptions,
+    LineEnding,
+} from "../../../core/editorConfig";
 import { formatDocumentText } from "./documentTextFormatter";
 import { formatRazorTags } from "./razorTagFormatter";
 
 export interface RazorFormattingOptions {
     readonly indentation: IndentationOptions;
+    readonly csharpIndentation?: CSharpIndentationOptions;
+    readonly csharpNewLines?: CSharpNewLineOptions;
     readonly lineEnding: LineEnding;
     readonly insertFinalNewline: boolean;
     readonly trimTrailingWhitespace: boolean;
@@ -62,6 +71,14 @@ interface MultilineOpeningTagState {
     readonly formattedIndent: string;
 }
 
+type RazorContinuationFamily = "if" | "try" | "do";
+
+interface RazorContinuation {
+    readonly family?: RazorContinuationFamily;
+    readonly joinClosingBrace: boolean;
+    readonly opensBlock: boolean;
+}
+
 export function formatRazorMarkup(source: string, options: RazorFormattingOptions): string {
     const protectedCodeBlocks = protectRazorCodeBlocks(source);
     const sourceWithFormattedTags = restoreRazorCodeBlocks(
@@ -73,7 +90,13 @@ export function formatRazorMarkup(source: string, options: RazorFormattingOption
         : sourceWithFormattedTags;
     const separators = sourceWithFormattedCSharp.match(/\r\n|\n|\r/g) ?? [];
     const lines = sourceWithFormattedCSharp.split(/\r\n|\n|\r/);
-    const formattedLines = formatLines(lines, options.html);
+    const formattedLines = formatLines(
+        lines,
+        options.html,
+        options.csharpIndentation?.indentBlockContents ?? true,
+        shouldPlaceControlBraceOnNewLine(options.csharpNewLines?.beforeOpenBrace),
+        options.csharpNewLines,
+    );
     const formatted = formattedLines.reduce((result, line, index) => {
         return result + line + (separators[index] ?? "");
     }, "");
@@ -169,11 +192,20 @@ function formatRazorCodeBlocks(
     return lines.join(lineEnding);
 }
 
-function formatLines(lines: readonly string[], html: HtmlFormattingOptions): string[] {
+function formatLines(
+    lines: readonly string[],
+    html: HtmlFormattingOptions,
+    indentRazorBlockContents: boolean,
+    placeControlBraceOnNewLine: boolean,
+    csharpNewLines: CSharpNewLineOptions | undefined,
+): string[] {
     const result: string[] = [];
     const markupStack: string[] = [];
     const indentUnit = html.indentation.style === "tab" ? "\t" : " ".repeat(html.indentation.size);
     let baseIndent = "";
+    let razorBlockDepth = 0;
+    let pendingRazorBlock = false;
+    let continuationFamily: RazorContinuationFamily | undefined;
     let inRazorComment = false;
     let inHtmlComment = false;
     let protectedElementName: string | undefined;
@@ -234,6 +266,88 @@ function formatLines(lines: readonly string[], html: HtmlFormattingOptions): str
             continue;
         }
 
+        const continuation = matchRazorContinuation(trimmedLine, continuationFamily, csharpNewLines);
+        if (continuation) {
+            const formattedContinuation = baseIndent + indentUnit.repeat(markupStack.length) + trimmedLine;
+            if (continuation.joinClosingBrace) {
+                result[result.length - 1] += ` ${trimmedLine}`;
+            } else {
+                result.push(formattedContinuation);
+            }
+
+            continuationFamily = continuation.family;
+            if (continuation.opensBlock) {
+                const braceScan = scanCSharpBraces(trimmedLine, { mode: "normal", rawQuoteCount: 0 });
+                razorBlockDepth = Math.max(0, razorBlockDepth + braceScan.delta);
+                pendingRazorBlock = !braceScan.sawOpeningBrace;
+            } else {
+                pendingRazorBlock = false;
+            }
+            continue;
+        }
+
+        if (continuationFamily && !pendingRazorBlock && razorBlockDepth === 0 && trimmedLine.length > 0) {
+            continuationFamily = undefined;
+        }
+
+        if (isRazorControlHeader(trimmedLine)) {
+            if (markupStack.length === 0) {
+                baseIndent = getLeadingWhitespace(line);
+            }
+            const contentDepth = indentRazorBlockContents ? razorBlockDepth : 0;
+            result.push(baseIndent + indentUnit.repeat(markupStack.length + contentDepth) + trimmedLine);
+
+            const braceScan = scanCSharpBraces(trimmedLine, { mode: "normal", rawQuoteCount: 0 });
+            razorBlockDepth = Math.max(0, razorBlockDepth + braceScan.delta);
+            pendingRazorBlock = !braceScan.sawOpeningBrace;
+            continuationFamily = getRazorContinuationFamily(trimmedLine);
+            continue;
+        }
+
+        if (pendingRazorBlock && trimmedLine.startsWith("{")) {
+            if (placeControlBraceOnNewLine) {
+                result.push(baseIndent + indentUnit.repeat(markupStack.length + razorBlockDepth) + trimmedLine);
+            } else {
+                result[result.length - 1] += ` ${trimmedLine}`;
+            }
+            const braceScan = scanCSharpBraces(trimmedLine, { mode: "normal", rawQuoteCount: 0 });
+            razorBlockDepth = Math.max(0, razorBlockDepth + braceScan.delta);
+            pendingRazorBlock = false;
+            continue;
+        }
+
+        if (razorBlockDepth > 0 && trimmedLine.startsWith("}")) {
+            const continuationText = trimmedLine.slice(1).trim();
+            const closingContinuation = matchRazorContinuation(continuationText, continuationFamily, csharpNewLines);
+            if (closingContinuation) {
+                const closingDepth = Math.max(0, razorBlockDepth - 1);
+                const closingIndent = baseIndent + indentUnit.repeat(markupStack.length + closingDepth);
+                if (closingContinuation.joinClosingBrace) {
+                    result.push(`${closingIndent}} ${continuationText}`);
+                } else {
+                    result.push(`${closingIndent}}`);
+                    result.push(baseIndent + indentUnit.repeat(markupStack.length + closingDepth) + continuationText);
+                }
+
+                razorBlockDepth = closingDepth;
+                continuationFamily = closingContinuation.family;
+                if (closingContinuation.opensBlock) {
+                    const braceScan = scanCSharpBraces(continuationText, { mode: "normal", rawQuoteCount: 0 });
+                    razorBlockDepth = Math.max(0, razorBlockDepth + braceScan.delta);
+                    pendingRazorBlock = !braceScan.sawOpeningBrace;
+                } else {
+                    pendingRazorBlock = false;
+                }
+                continue;
+            }
+
+            const braceScan = scanCSharpBraces(trimmedLine, { mode: "normal", rawQuoteCount: 0 });
+            const lineDepth = Math.max(0, razorBlockDepth - Math.min(razorBlockDepth, braceScan.delta < 0 ? 1 : 0));
+            result.push(baseIndent + indentUnit.repeat(markupStack.length + lineDepth) + trimmedLine);
+            razorBlockDepth = Math.max(0, razorBlockDepth + braceScan.delta);
+            continue;
+        }
+
         if (razorCodeBlockPattern.test(trimmedLine)) {
             codeBlock = updateRazorCodeBlock(createRazorCodeBlockState(), line);
             resetMarkupState(markupStack);
@@ -261,7 +375,8 @@ function formatLines(lines: readonly string[], html: HtmlFormattingOptions): str
             if (markupStack.length === 0) {
                 baseIndent = getLeadingWhitespace(line);
             }
-            const formattedProtectedLine = baseIndent + indentUnit.repeat(markupStack.length) + trimmedLine;
+            const razorContentDepth = indentRazorBlockContents ? razorBlockDepth : 0;
+            const formattedProtectedLine = baseIndent + indentUnit.repeat(markupStack.length + razorContentDepth) + trimmedLine;
             if (!new RegExp(`</${elementName}\\s*>`, "i").test(trimmedLine)) {
                 protectedElementName = elementName;
             }
@@ -287,7 +402,8 @@ function formatLines(lines: readonly string[], html: HtmlFormattingOptions): str
                 baseIndent = sourceIndent;
             }
 
-            const formattedIndent = baseIndent + indentUnit.repeat(markupStack.length);
+            const razorContentDepth = indentRazorBlockContents ? razorBlockDepth : 0;
+            const formattedIndent = baseIndent + indentUnit.repeat(markupStack.length + razorContentDepth);
             result.push(formattedIndent + trimmedLine);
             multilineOpeningTag = { name: multilineTagName, sourceIndent, formattedIndent };
             continue;
@@ -301,12 +417,13 @@ function formatLines(lines: readonly string[], html: HtmlFormattingOptions): str
         }
 
         if (tokens.length === 0) {
-            if (markupStack.length === 0) {
+            if (markupStack.length === 0 && razorBlockDepth === 0) {
                 result.push(line);
                 continue;
             }
 
-            result.push(baseIndent + indentUnit.repeat(markupStack.length) + trimmedLine);
+            const razorContentDepth = indentRazorBlockContents ? razorBlockDepth : 0;
+            result.push(baseIndent + indentUnit.repeat(markupStack.length + razorContentDepth) + trimmedLine);
             continue;
         }
 
@@ -327,7 +444,8 @@ function formatLines(lines: readonly string[], html: HtmlFormattingOptions): str
         }
 
         const leadingClosingCount = countLeadingClosingTags(tokens, trimmedLine);
-        const lineDepth = Math.max(0, markupStack.length - leadingClosingCount);
+        const razorContentDepth = indentRazorBlockContents ? razorBlockDepth : 0;
+        const lineDepth = Math.max(0, markupStack.length - leadingClosingCount) + razorContentDepth;
         result.push(baseIndent + indentUnit.repeat(lineDepth) + trimmedLine);
         markupStack.splice(0, markupStack.length, ...nextStack);
 
@@ -503,6 +621,63 @@ function isSelfClosingTagLine(line: string, tagEnd: number): boolean {
 
 function isFormattingBoundary(trimmedLine: string): boolean {
     return trimmedLine.startsWith("@") || trimmedLine.startsWith("{") || trimmedLine.startsWith("}");
+}
+
+function isRazorControlHeader(line: string): boolean {
+    return /^@(?:if|for|foreach|while|switch|using|lock|do|try)\b/.test(line);
+}
+
+function getRazorContinuationFamily(line: string): RazorContinuationFamily | undefined {
+    if (/^@if\b/.test(line)) {
+        return "if";
+    }
+    if (/^@try\b/.test(line)) {
+        return "try";
+    }
+    if (/^@do\b/.test(line)) {
+        return "do";
+    }
+    return undefined;
+}
+
+function matchRazorContinuation(
+    line: string,
+    family: RazorContinuationFamily | undefined,
+    newLines: CSharpNewLineOptions | undefined,
+): RazorContinuation | undefined {
+    if (family === "if" && /^else(?:\s+if\b.*)?(?:\s*\{)?$/.test(line)) {
+        const isElseIf = /^else\s+if\b/.test(line);
+        return {
+            family: isElseIf ? "if" : undefined,
+            joinClosingBrace: !(newLines?.beforeElse ?? true),
+            opensBlock: true,
+        };
+    }
+    if (family === "try" && /^catch(?:\s*\([^)]*\))?(?:\s*\{)?$/.test(line)) {
+        return {
+            family: "try",
+            joinClosingBrace: !(newLines?.beforeCatch ?? true),
+            opensBlock: true,
+        };
+    }
+    if (family === "try" && /^finally(?:\s*\{)?$/.test(line)) {
+        return {
+            family: undefined,
+            joinClosingBrace: !(newLines?.beforeFinally ?? true),
+            opensBlock: true,
+        };
+    }
+    if (family === "do" && /^while\s*\(.*\)\s*;$/.test(line)) {
+        return { family: undefined, joinClosingBrace: true, opensBlock: false };
+    }
+    return undefined;
+}
+
+function shouldPlaceControlBraceOnNewLine(configuredContexts: CSharpNewLineOptions["beforeOpenBrace"] | undefined): boolean {
+    if (configuredContexts === undefined || configuredContexts === "all") {
+        return true;
+    }
+    return configuredContexts !== "none" && configuredContexts.has("control_blocks");
 }
 
 function getLeadingWhitespace(line: string): string {

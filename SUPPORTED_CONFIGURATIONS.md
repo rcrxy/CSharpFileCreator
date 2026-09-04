@@ -62,6 +62,10 @@ Razor `@code` and `@functions` blocks reuse the same C# formatter through the `C
 `registerFormattingFeature` accepts an optional `CSharpCodeFormatter` when a different implementation should be used
 for embedded Razor C# code.
 
+`csharp_indent_block_contents` also applies to C# statements and markup inside Razor control blocks. Supported control
+flows include `@if`/`else if`/`else`, `@for`, `@foreach`, `@while`, `@switch`, `@using`, `@lock`,
+`@try`/`catch`/`finally`, and `@do`/`while`. Their contents gain one indentation level when the property is enabled.
+
 ### C# New Lines
 
 | Property                            | Supported values                                                  | Default |
@@ -73,6 +77,11 @@ for embedded Razor C# code.
 
 Supported brace contexts are `accessors`, `anonymous_methods`, `anonymous_types`, `control_blocks`, `events`,
 `indexers`, `lambdas`, `local_functions`, `methods`, `object_collection_array_initializers`, `properties`, and `types`.
+
+Razor control blocks also apply these new-line rules. `csharp_new_line_before_open_brace` uses the `control_blocks`
+context for their opening braces, while `csharp_new_line_before_else`, `csharp_new_line_before_catch`, and
+`csharp_new_line_before_finally` control whether those continuation keywords follow the previous closing brace on the
+same line. Razor `@do`/`while` is formatted as `} while (...);`.
 
 ### C# Spacing
 
