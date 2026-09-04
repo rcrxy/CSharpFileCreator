@@ -31,14 +31,14 @@ CSHTML 提供对应的默认配置。
 | `indent_style`             | `space`、`tab`       | 选择每一级缩进使用空格还是制表符。                                |
 | `indent_size`              | 正整数、`tab`        | 设置逻辑缩进宽度；设置为 `tab` 时使用解析后的 `tab_width`。       |
 | `tab_width`                | 正整数               | 设置 Tab 可视宽度，并参与解析 `indent_size = tab`。               |
-| `max_line_length`          | 正整数、`off`        | 在安全的逗号和二元运算符边界换行 C#；`off` 关闭格式化器行宽处理。 |
+| `max_line_length`          | 正整数、`off`        | 在安全的逗号和二元运算符边界换行 C#；启用 HTML 属性换行时也用于判断 Razor/HTML 开始标签是否超长；`off` 关闭基于行宽的换行。 |
 | `end_of_line`              | `lf`、`crlf`         | 将文档换行符统一为配置值。                                        |
 | `insert_final_newline`     | `true`、`false`      | 确保文件包含或不包含末尾换行。                                    |
 | `trim_trailing_whitespace` | `true`、`false`      | 启用时删除换行符前的尾随空格和 Tab。                              |
 | `charset`                  | `utf-8`、`utf-8-bom` | 添加或移除 UTF-8 BOM；其他字符集值可被解析，但不会触发文件转码。  |
 
 这些属性当前应用于 Razor 和 C# 文档格式化。`max_line_length` 会处理 C# 文档以及 Razor `@code`、
-`@functions` 中的 C# 代码，但不会拆分 Razor 标签属性。
+`@functions` 中的 C# 代码；当 `html_attribute_wrap = normal` 时，也会用于判断 Razor/HTML 标签属性是否换行。
 
 对于 C# **格式化文档**，会应用表中的全部属性。**格式化选定内容**只对选中的完整行应用缩进和
 `trim_trailing_whitespace`，不会改变整个文档的换行符、末尾换行或 BOM。
@@ -106,6 +106,8 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 | `html_space_after_last_attribute`                              | `true`、`false`                                                                          | `false`          | 控制最后一个属性和 `>` 之间的空格。                                 |
 | `html_space_before_self_closing`                               | `true`、`false`                                                                          | `true`           | 控制 `/>` 前的空格。                                                |
 | `html_attribute_style`                                         | `on_single_line`、`first_attribute_on_single_line`、`on_different_lines`、`do_not_touch` | `on_single_line` | 控制属性行布局。                                                    |
+| `html_attribute_wrap`                                          | `off`、`normal`、`on_every_item`、`split_into_lines`                                    | `off`            | 控制是否因 `max_line_length` 触发属性换行。`normal` 在格式化后的开始标签不超长时保持单行，超长后按 `html_attribute_style` 布局。`on_every_item` 和 `split_into_lines` 目前仅解析，尚未应用。 |
+| `ij_html_attribute_wrap`                                       | `off`、`normal`、`on_every_item`、`split_into_lines`                                    | `off`            | `html_attribute_wrap` 的兼容别名；两者同时存在时标准键优先。`on_every_item` 和 `split_into_lines` 目前仅解析，尚未应用。 |
 | `html_attribute_indent`                                        | `single_indent`、`double_indent`、`align_by_first_attribute`                             | `single_indent`  | 控制多行属性的缩进。                                                |
 | `html_max_blank_lines_between_tags`                            | 非负整数                                                                                 | `1`              | 限制相邻标签之间的空白行数量。                                      |
 | `html_linebreak_before_all_elements`                           | `true`、`false`                                                                          | `false`          | 启用时将每个元素放到新行。                                          |

@@ -23,6 +23,7 @@ export type {
     EditorConfigFallback,
     HtmlAttributeIndent,
     HtmlAttributeStyle,
+    HtmlAttributeWrapPolicy,
     HtmlExtraSpaces,
     HtmlFormattingOptions,
     IndentationOptions,

@@ -55,29 +55,36 @@ export class CSharpDocumentFormattingProvider
         kind: "document" | "selection",
     ): Promise<vscode.TextEdit[]> {
         const startedAt = performance.now();
-        const editorConfig = await resolveEditorConfig(document.uri, getEditorConfigFallback(document, options));
-        if (token.isCancellationRequested) {
-            return [];
+        try {
+            const editorConfig = await resolveEditorConfig(document.uri, getEditorConfigFallback(document, options));
+            if (token.isCancellationRequested) {
+                this.log.info(`C# ${kind} formatting cancelled: ${document.uri.toString()}.`);
+                return [];
+            }
+
+            const source = document.getText();
+            const originalSelection = document.getText(targetRange);
+            const formattedSelection =
+                kind === "document"
+                    ? formatDocumentText(this.formatText(source, editorConfig), editorConfig)
+                    : formatSelectedText(
+                          this.formatSelection(document, targetRange, source, editorConfig),
+                          editorConfig.trimTrailingWhitespace,
+                      );
+            const changed = originalSelection !== formattedSelection;
+
+            this.log.info(
+                `C# ${kind} formatting completed: ${document.uri.toString()} ` +
+                    `(changed=${changed}, duration=${formatElapsedTime(startedAt)}, ` +
+                    `range=${formatRange(targetRange)}, inputChars=${originalSelection.length}, ` +
+                    `outputChars=${formattedSelection.length}).`,
+            );
+
+            return changed ? [vscode.TextEdit.replace(targetRange, formattedSelection)] : [];
+        } catch (error) {
+            this.log.error(`C# ${kind} formatting failed: ${document.uri.toString()}.`, error);
+            throw error;
         }
-
-        const source = document.getText();
-        const originalSelection = document.getText(targetRange);
-        const formattedSelection =
-            kind === "document"
-                ? formatDocumentText(this.formatText(source, editorConfig), editorConfig)
-                : formatSelectedText(
-                      this.formatSelection(document, targetRange, source, editorConfig),
-                      editorConfig.trimTrailingWhitespace,
-                  );
-        const changed = originalSelection !== formattedSelection;
-
-        this.log.info(
-            `C# ${kind} formatting completed in ${(performance.now() - startedAt).toFixed(1)} ms ` +
-                `(changed=${changed}, range=${targetRange.start.line}:${targetRange.start.character}-${targetRange.end.line}:${targetRange.end.character}).`,
-        );
-        this.log.info(`C# formatted ${kind} result for ${document.uri.toString()}:\n${formattedSelection}`);
-
-        return changed ? [vscode.TextEdit.replace(targetRange, formattedSelection)] : [];
     }
 
     private formatSelection(
@@ -102,6 +109,14 @@ export class CSharpDocumentFormattingProvider
 
         return wrapCSharpLines(selectedFormatted, editorConfig.maxLineLength, editorConfig.indentation);
     }
+}
+
+function formatRange(range: vscode.Range): string {
+    return `${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}`;
+}
+
+function formatElapsedTime(startedAt: number): string {
+    return `${(performance.now() - startedAt).toFixed(1)} ms`;
 }
 
 function fullDocumentRange(document: vscode.TextDocument): vscode.Range {

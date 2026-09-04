@@ -58,6 +58,8 @@ interface BraceScanResult {
 
 interface MultilineOpeningTagState {
     readonly name: string;
+    readonly sourceIndent: string;
+    readonly formattedIndent: string;
 }
 
 export function formatRazorMarkup(source: string, options: RazorFormattingOptions): string {
@@ -187,7 +189,11 @@ function formatLines(lines: readonly string[], html: HtmlFormattingOptions): str
                 continue;
             }
 
-            result.push(baseIndent + indentUnit.repeat(markupStack.length + 1) + trimmedLine);
+            const relativeIndent =
+                html.attributeStyle === "do_not_touch"
+                    ? getRelativeIndent(line, multilineOpeningTag.sourceIndent)
+                    : getFormattedAttributeIndent(multilineOpeningTag.name, html, indentUnit);
+            result.push(multilineOpeningTag.formattedIndent + relativeIndent + trimmedLine);
 
             const tagEnd = findTagEnd(trimmedLine, 0);
             if (tagEnd >= 0) {
@@ -276,12 +282,14 @@ function formatLines(lines: readonly string[], html: HtmlFormattingOptions): str
 
         const multilineTagName = getMultilineOpeningTagName(trimmedLine);
         if (multilineTagName) {
+            const sourceIndent = getLeadingWhitespace(line);
             if (markupStack.length === 0) {
-                baseIndent = getLeadingWhitespace(line);
+                baseIndent = sourceIndent;
             }
 
-            result.push(baseIndent + indentUnit.repeat(markupStack.length) + trimmedLine);
-            multilineOpeningTag = { name: multilineTagName };
+            const formattedIndent = baseIndent + indentUnit.repeat(markupStack.length);
+            result.push(formattedIndent + trimmedLine);
+            multilineOpeningTag = { name: multilineTagName, sourceIndent, formattedIndent };
             continue;
         }
 
@@ -499,6 +507,21 @@ function isFormattingBoundary(trimmedLine: string): boolean {
 
 function getLeadingWhitespace(line: string): string {
     return /^\s*/.exec(line)?.[0] ?? "";
+}
+
+function getRelativeIndent(line: string, sourceIndent: string): string {
+    const lineIndent = getLeadingWhitespace(line);
+    return lineIndent.startsWith(sourceIndent) ? lineIndent.slice(sourceIndent.length) : lineIndent;
+}
+
+function getFormattedAttributeIndent(tagName: string, html: HtmlFormattingOptions, indentUnit: string): string {
+    if (html.attributeIndent === "double_indent") {
+        return indentUnit.repeat(2);
+    }
+    if (html.attributeIndent === "align_by_first_attribute") {
+        return " ".repeat(tagName.length + 2);
+    }
+    return indentUnit;
 }
 
 function resetMarkupState(markupStack: string[]): void {

@@ -1,3 +1,8 @@
+## [0.0.2] - 2026-09-04
+
+- Add length-aware Razor and HTML attribute wrapping with `html_attribute_wrap = normal`.
+- Document supported and parsed-only HTML attribute wrapping policies.
+
 ## [Unreleased]
 
 - Add shared EditorConfig parsing with normalized indentation fallback.
