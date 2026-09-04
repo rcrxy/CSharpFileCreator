@@ -11,6 +11,10 @@ import type {
     CSharpSpacingOptions,
     CSharpWrappingOptions,
     EditorConfigFallback,
+    HtmlAttributeIndent,
+    HtmlAttributeStyle,
+    HtmlExtraSpaces,
+    HtmlFormattingOptions,
     IndentationOptions,
     IndentationStyle,
     LineEnding,
@@ -30,12 +34,111 @@ export async function resolveEditorConfig(
         csharpNewLines: resolveCSharpNewLineOptions(properties),
         csharpSpacing: resolveCSharpSpacingOptions(properties),
         csharpWrapping: resolveCSharpWrappingOptions(properties),
+        html: resolveHtmlFormattingOptions(properties, fallback),
         lineEnding: resolveLineEnding(properties.end_of_line, fallback.lineEnding),
         insertFinalNewline: resolveBoolean(properties.insert_final_newline, fallback.insertFinalNewline, true),
         trimTrailingWhitespace: resolveBoolean(properties.trim_trailing_whitespace, fallback.trimTrailingWhitespace, false),
         charset: resolveCharset(properties.charset, fallback.charset),
         properties,
     };
+}
+
+export function resolveHtmlFormattingOptions(
+    properties: Readonly<Props>,
+    fallback: EditorConfigFallback = {},
+): HtmlFormattingOptions {
+    return {
+        indentation: resolveHtmlIndentationOptions(properties, fallback),
+        spacesAroundAttributeEquals: resolveHtmlBoolean(properties, "html_spaces_around_eq_in_attribute", false),
+        spaceAfterLastAttribute: resolveHtmlBoolean(properties, "html_space_after_last_attribute", false),
+        spaceBeforeSelfClosing: resolveHtmlBoolean(properties, "html_space_before_self_closing", true),
+        attributeStyle: resolveHtmlEnum(
+            properties,
+            "html_attribute_style",
+            ["on_single_line", "first_attribute_on_single_line", "on_different_lines", "do_not_touch"],
+            "on_single_line",
+        ),
+        attributeIndent: resolveHtmlEnum(
+            properties,
+            "html_attribute_indent",
+            ["single_indent", "double_indent", "align_by_first_attribute"],
+            "single_indent",
+        ),
+        maxBlankLinesBetweenTags: resolveHtmlNonNegativeInteger(properties, "html_max_blank_lines_between_tags", 1),
+        lineBreakBeforeAllElements: resolveHtmlBoolean(properties, "html_linebreak_before_all_elements", false),
+        lineBreakBeforeMultilineElements: resolveHtmlBoolean(properties, "html_linebreak_before_multiline_elements", true),
+        lineBreaksInsideMultilineElements: resolveHtmlBoolean(
+            properties,
+            "html_linebreaks_inside_tags_for_multiline_elements",
+            true,
+        ),
+        lineBreaksInsideElementsWithChildElements: resolveHtmlBoolean(
+            properties,
+            "html_linebreaks_inside_tags_for_elements_with_child_elements",
+            true,
+        ),
+        noIndentInsideElements: resolveHtmlElementSet(properties, "html_no_indent_inside_elements", ["pre", "textarea"]),
+        preserveSpacesInsideTags: resolveHtmlElementSet(properties, "html_preserve_spaces_inside_tags", ["pre", "textarea"]),
+        extraSpaces: resolveHtmlEnum(
+            properties,
+            "html_extra_spaces",
+            ["remove_all", "leave_tabs", "leave_multiple", "leave_all"],
+            "remove_all",
+        ),
+    };
+}
+
+function resolveHtmlIndentationOptions(properties: Readonly<Props>, fallback: EditorConfigFallback): IndentationOptions {
+    const htmlProperties: Props = {
+        indent_style:
+            (resolveHtmlProperty(properties, "html_indent_style") as Props["indent_style"]) ?? properties.indent_style,
+        indent_size: (resolveHtmlProperty(properties, "html_indent_size") as Props["indent_size"]) ?? properties.indent_size,
+        tab_width: (resolveHtmlProperty(properties, "html_tab_width") as Props["tab_width"]) ?? properties.tab_width,
+    };
+    return resolveIndentationOptions(htmlProperties, fallback);
+}
+
+function resolveHtmlBoolean(properties: Readonly<Props>, name: string, defaultValue: boolean): boolean {
+    return resolveCustomBoolean(resolveHtmlProperty(properties, name), defaultValue);
+}
+
+function resolveHtmlEnum<T extends string>(
+    properties: Readonly<Props>,
+    name: string,
+    values: readonly T[],
+    defaultValue: T,
+): T {
+    const value = resolveHtmlProperty(properties, name);
+    return typeof value === "string" && values.includes(value as T) ? (value as T) : defaultValue;
+}
+
+function resolveHtmlNonNegativeInteger(properties: Readonly<Props>, name: string, defaultValue: number): number {
+    const value = resolveHtmlProperty(properties, name);
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+        return value;
+    }
+    if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+        return Number.parseInt(value, 10);
+    }
+    return defaultValue;
+}
+
+function resolveHtmlElementSet(properties: Readonly<Props>, name: string, defaults: readonly string[]): ReadonlySet<string> {
+    const value = resolveHtmlProperty(properties, name);
+    if (typeof value !== "string") {
+        return new Set(defaults);
+    }
+
+    return new Set(
+        value
+            .split(",")
+            .map(item => item.trim().toLowerCase())
+            .filter(Boolean),
+    );
+}
+
+function resolveHtmlProperty(properties: Readonly<Props>, name: string): unknown {
+    return properties[name] ?? properties[`resharper_${name}`];
 }
 
 export function resolveMaxLineLength(value: unknown, fallback?: number): number | undefined {

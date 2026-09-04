@@ -35,7 +35,7 @@
         "lint": "eslint src",
         "test": "vscode-test",
         "test:unit": "npm run compile && node --test out/test/unit/*.test.js",
-        "test:coverage": "npm run compile && node --test --experimental-test-coverage --test-coverage-include=out/features/formatting/services/csharpCodeStyleFormatter.js --test-coverage-lines=90 --test-coverage-functions=90 out/test/unit/*.test.js"
+        "test:coverage": "npm run compile && node --test --experimental-test-coverage --test-coverage-include=out/features/formatting/services/csharpCodeStyleFormatter.js --test-coverage-include=out/features/formatting/services/razorTagFormatter.js --test-coverage-lines=90 --test-coverage-functions=90 out/test/unit/*.test.js"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",

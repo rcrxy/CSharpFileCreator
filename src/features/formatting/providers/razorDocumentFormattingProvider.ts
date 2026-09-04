@@ -30,7 +30,8 @@ export class RazorDocumentFormattingProvider implements vscode.DocumentFormattin
 
             const source = document.getText();
             const formatted = formatRazorMarkup(source, {
-                indentation: editorConfig.indentation,
+                indentation: editorConfig.html.indentation,
+                html: editorConfig.html,
                 lineEnding: editorConfig.lineEnding,
                 insertFinalNewline: editorConfig.insertFinalNewline,
                 trimTrailingWhitespace: editorConfig.trimTrailingWhitespace,

@@ -1,5 +1,6 @@
-import type { Charset, IndentationOptions, LineEnding } from "../../../core/editorConfig";
+import type { Charset, HtmlFormattingOptions, IndentationOptions, LineEnding } from "../../../core/editorConfig";
 import { formatDocumentText } from "./documentTextFormatter";
+import { formatRazorTags } from "./razorTagFormatter";
 
 export interface RazorFormattingOptions {
     readonly indentation: IndentationOptions;
@@ -7,6 +8,7 @@ export interface RazorFormattingOptions {
     readonly insertFinalNewline: boolean;
     readonly trimTrailingWhitespace: boolean;
     readonly charset: Charset;
+    readonly html: HtmlFormattingOptions;
     readonly formatCSharp?: (source: string) => string;
 }
 
@@ -29,7 +31,6 @@ const voidElementNames = new Set([
 
 const optionalEndElementNames = new Set(["dd", "dt", "li", "option", "p", "tbody", "td", "tfoot", "th", "thead", "tr"]);
 
-const protectedElementPattern = /^<(script|style|pre|textarea)\b/i;
 const razorCodeBlockPattern = /^@(?:code|functions)\b|^@\s*\{/i;
 
 interface TagToken {
@@ -60,17 +61,59 @@ interface MultilineOpeningTagState {
 }
 
 export function formatRazorMarkup(source: string, options: RazorFormattingOptions): string {
+    const protectedCodeBlocks = protectRazorCodeBlocks(source);
+    const sourceWithFormattedTags = restoreRazorCodeBlocks(
+        formatRazorTags(protectedCodeBlocks.source, options.html, options.lineEnding),
+        protectedCodeBlocks.values,
+    );
     const sourceWithFormattedCSharp = options.formatCSharp
-        ? formatRazorCodeBlocks(source, options.indentation, options.formatCSharp)
-        : source;
+        ? formatRazorCodeBlocks(sourceWithFormattedTags, options.indentation, options.formatCSharp)
+        : sourceWithFormattedTags;
     const separators = sourceWithFormattedCSharp.match(/\r\n|\n|\r/g) ?? [];
     const lines = sourceWithFormattedCSharp.split(/\r\n|\n|\r/);
-    const formattedLines = formatLines(lines, options.indentation);
+    const formattedLines = formatLines(lines, options.html);
     const formatted = formattedLines.reduce((result, line, index) => {
         return result + line + (separators[index] ?? "");
     }, "");
 
     return formatDocumentText(formatted, options);
+}
+
+function protectRazorCodeBlocks(source: string): { readonly source: string; readonly values: readonly string[] } {
+    const lineEnding = source.includes("\r\n") ? "\r\n" : "\n";
+    const lines = source.split(/\r\n|\n|\r/);
+    const values: string[] = [];
+
+    for (let directiveLine = 0; directiveLine < lines.length; directiveLine++) {
+        if (!razorCodeBlockPattern.test(lines[directiveLine].trim())) {
+            continue;
+        }
+
+        const state = createRazorCodeBlockState();
+        let closingLine = -1;
+        for (let lineIndex = directiveLine; lineIndex < lines.length; lineIndex++) {
+            const braceScan = scanCSharpBraces(lines[lineIndex], state.lexicalState);
+            state.depth += braceScan.delta;
+            state.seenOpeningBrace ||= braceScan.sawOpeningBrace;
+            if (state.seenOpeningBrace && state.depth <= 0) {
+                closingLine = lineIndex;
+                break;
+            }
+        }
+
+        if (closingLine < directiveLine) {
+            continue;
+        }
+
+        const valueIndex = values.push(lines.slice(directiveLine, closingLine + 1).join(lineEnding)) - 1;
+        lines.splice(directiveLine, closingLine - directiveLine + 1, `\uE100${valueIndex}\uE101`);
+    }
+
+    return { source: lines.join(lineEnding), values };
+}
+
+function restoreRazorCodeBlocks(source: string, values: readonly string[]): string {
+    return source.replace(/\uE100(\d+)\uE101/g, (_, index: string) => values[Number.parseInt(index, 10)] ?? "");
 }
 
 function formatRazorCodeBlocks(
@@ -124,10 +167,10 @@ function formatRazorCodeBlocks(
     return lines.join(lineEnding);
 }
 
-function formatLines(lines: readonly string[], indentation: IndentationOptions): string[] {
+function formatLines(lines: readonly string[], html: HtmlFormattingOptions): string[] {
     const result: string[] = [];
     const markupStack: string[] = [];
-    const indentUnit = indentation.style === "tab" ? "\t" : " ".repeat(indentation.size);
+    const indentUnit = html.indentation.style === "tab" ? "\t" : " ".repeat(html.indentation.size);
     let baseIndent = "";
     let inRazorComment = false;
     let inHtmlComment = false;
@@ -181,7 +224,6 @@ function formatLines(lines: readonly string[], indentation: IndentationOptions):
             if (new RegExp(`</${protectedElementName}\\s*>`, "i").test(line)) {
                 protectedElementName = undefined;
             }
-            resetMarkupState(markupStack);
             result.push(line);
             continue;
         }
@@ -207,14 +249,17 @@ function formatLines(lines: readonly string[], indentation: IndentationOptions):
             continue;
         }
 
-        const protectedElementMatch = protectedElementPattern.exec(trimmedLine);
+        const protectedElementMatch = matchConfiguredElement(trimmedLine, html.noIndentInsideElements);
         if (protectedElementMatch) {
             const elementName = protectedElementMatch[1];
+            if (markupStack.length === 0) {
+                baseIndent = getLeadingWhitespace(line);
+            }
+            const formattedProtectedLine = baseIndent + indentUnit.repeat(markupStack.length) + trimmedLine;
             if (!new RegExp(`</${elementName}\\s*>`, "i").test(trimmedLine)) {
                 protectedElementName = elementName;
             }
-            resetMarkupState(markupStack);
-            result.push(line);
+            result.push(formattedProtectedLine);
             continue;
         }
 
@@ -284,6 +329,18 @@ function formatLines(lines: readonly string[], indentation: IndentationOptions):
     }
 
     return result;
+}
+
+function matchConfiguredElement(line: string, elements: ReadonlySet<string>): RegExpExecArray | null {
+    if (elements.size === 0) {
+        return null;
+    }
+    const names = [...elements].map(escapeRegExp).join("|");
+    return new RegExp(`^<(${names})\\b`, "i").exec(line);
+}
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseTagTokens(line: string): TagToken[] | undefined {

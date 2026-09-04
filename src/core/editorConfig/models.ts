@@ -61,6 +61,27 @@ export interface CSharpWrappingOptions {
     readonly preserveSingleLineBlocks: boolean;
 }
 
+export type HtmlAttributeStyle = "on_single_line" | "first_attribute_on_single_line" | "on_different_lines" | "do_not_touch";
+export type HtmlAttributeIndent = "single_indent" | "double_indent" | "align_by_first_attribute";
+export type HtmlExtraSpaces = "remove_all" | "leave_tabs" | "leave_multiple" | "leave_all";
+
+export interface HtmlFormattingOptions {
+    readonly indentation: IndentationOptions;
+    readonly spacesAroundAttributeEquals: boolean;
+    readonly spaceAfterLastAttribute: boolean;
+    readonly spaceBeforeSelfClosing: boolean;
+    readonly attributeStyle: HtmlAttributeStyle;
+    readonly attributeIndent: HtmlAttributeIndent;
+    readonly maxBlankLinesBetweenTags: number;
+    readonly lineBreakBeforeAllElements: boolean;
+    readonly lineBreakBeforeMultilineElements: boolean;
+    readonly lineBreaksInsideMultilineElements: boolean;
+    readonly lineBreaksInsideElementsWithChildElements: boolean;
+    readonly noIndentInsideElements: ReadonlySet<string>;
+    readonly preserveSpacesInsideTags: ReadonlySet<string>;
+    readonly extraSpaces: HtmlExtraSpaces;
+}
+
 export interface EditorConfigFallback {
     readonly insertSpaces?: boolean;
     readonly tabSize?: number;
@@ -78,6 +99,7 @@ export interface WorkbenchEditorConfig {
     readonly csharpNewLines: CSharpNewLineOptions;
     readonly csharpSpacing: CSharpSpacingOptions;
     readonly csharpWrapping: CSharpWrappingOptions;
+    readonly html: HtmlFormattingOptions;
     readonly lineEnding: LineEnding;
     readonly insertFinalNewline: boolean;
     readonly trimTrailingWhitespace: boolean;

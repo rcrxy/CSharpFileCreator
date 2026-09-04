@@ -78,6 +78,52 @@ Comments, regular strings, verbatim strings, raw strings, and character literals
 transformations. The formatter is syntax-aware for the constructs listed above, but it is not a complete Roslyn syntax
 tree implementation. Unsupported or ambiguous constructs are left unchanged where possible.
 
+### HTML And Razor Tags
+
+These property names follow the ReSharper/Rider HTML formatting rules. C# Workbench accepts both the documented
+`html_*` form and the compatible `resharper_html_*` form. When both forms are present, the unprefixed `html_*` property
+wins.
+
+| Property                                                       | Supported values                                                                         | Default          | Behavior                                                                                                               |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `html_spaces_around_eq_in_attribute`                           | `true`, `false`                                                                          | `false`          | Controls spaces around `=` in attributes.                                                                              |
+| `html_space_after_last_attribute`                              | `true`, `false`                                                                          | `false`          | Controls the space between the last attribute and `>`.                                                                 |
+| `html_space_before_self_closing`                               | `true`, `false`                                                                          | `true`           | Controls the space before `/>`.                                                                                        |
+| `html_attribute_style`                                         | `on_single_line`, `first_attribute_on_single_line`, `on_different_lines`, `do_not_touch` | `on_single_line` | Controls attribute line layout.                                                                                        |
+| `html_attribute_indent`                                        | `single_indent`, `double_indent`, `align_by_first_attribute`                             | `single_indent`  | Controls indentation of multiline attributes.                                                                          |
+| `html_max_blank_lines_between_tags`                            | Non-negative integer                                                                     | `1`              | Limits blank lines between adjacent tags.                                                                              |
+| `html_linebreak_before_all_elements`                           | `true`, `false`                                                                          | `false`          | Places every element on a new line when enabled.                                                                       |
+| `html_linebreak_before_multiline_elements`                     | `true`, `false`                                                                          | `true`           | Places multiline elements on a new line.                                                                               |
+| `html_linebreaks_inside_tags_for_multiline_elements`           | `true`, `false`                                                                          | `true`           | Places multiline element content between line breaks.                                                                  |
+| `html_linebreaks_inside_tags_for_elements_with_child_elements` | `true`, `false`                                                                          | `true`           | Places child elements and the parent closing tag on separate lines when the parent has no direct text.                 |
+| `html_no_indent_inside_elements`                               | Comma-separated element names                                                            | `pre,textarea`   | Prevents indentation changes inside the listed elements.                                                               |
+| `html_preserve_spaces_inside_tags`                             | Comma-separated element names                                                            | `pre,textarea`   | Preserves the complete contents of the listed elements.                                                                |
+| `html_extra_spaces`                                            | `remove_all`, `leave_tabs`, `leave_multiple`, `leave_all`                                | `remove_all`     | Removes redundant horizontal tag whitespace for `remove_all`; the `leave_*` values preserve existing extra whitespace. |
+
+HTML-specific indentation aliases are also supported:
+
+```ini
+html_indent_style = space
+html_indent_size = 4
+html_tab_width = 4
+```
+
+Razor directives and `@code`/`@functions` blocks are protected while tags are parsed. The embedded C# blocks are then
+formatted by the configured `CSharpCodeFormatter`.
+
+#### HTML Resolution Priority
+
+HTML/Razor tag formatting uses this priority for every applicable setting:
+
+1. The unprefixed `html_*` language-specific property.
+2. The compatible `resharper_html_*` property, then the equivalent standard EditorConfig property when one exists.
+3. The current VS Code editor setting.
+4. The C# Workbench default shown in the table above.
+
+For indentation, the complete chain is `html_indent_*` → `resharper_html_indent_*` → standard `indent_*`/
+`tab_width` → current `TextEditor.options` → Workbench defaults. HTML rules without a standard EditorConfig or VS Code
+equivalent fall back directly from their language-specific forms to the Workbench default.
+
 ### Resolution Priority
 
 Indentation properties and `max_line_length` are resolved independently using this priority:
@@ -152,6 +198,7 @@ currently execute them. This includes properties such as:
 - `latin1` charset transcoding
 - `dotnet_*`
 - C# formatting properties other than the indentation, new-line, spacing, and preservation options listed above
+- HTML formatting properties other than the tag rules listed above
 
 Move a property into the applied-properties table only after a Workbench feature implements and validates its behavior.
 

@@ -4,10 +4,11 @@ import {
     resolveCSharpNewLineOptions,
     resolveCSharpSpacingOptions,
     resolveCSharpWrappingOptions,
+    resolveHtmlFormattingOptions,
     resolveMaxLineLength,
 } from "../../core/editorConfig";
 
-describe("C# EditorConfig options", () => {
+describe("EditorConfig options", () => {
     it("uses Roslyn-compatible defaults", () => {
         assert.deepEqual(resolveCSharpNewLineOptions({}), {
             beforeOpenBrace: "all",
@@ -100,5 +101,51 @@ describe("C# EditorConfig options", () => {
         assert.equal(resolveMaxLineLength(undefined), 80);
         assert.equal(resolveMaxLineLength("off", 100), undefined);
         assert.equal(resolveMaxLineLength(0, 0), 80);
+    });
+
+    it("resolves HTML rules with language, compatibility, standard, editor, and default priority", () => {
+        const fallback = { insertSpaces: false, tabSize: 8 };
+        const languageSpecific = resolveHtmlFormattingOptions(
+            {
+                html_indent_style: "space",
+                html_indent_size: 2,
+                html_tab_width: 3,
+                indent_style: "tab",
+                indent_size: 6,
+                resharper_html_indent_size: 7,
+                html_attribute_style: "on_different_lines",
+                resharper_html_attribute_style: "do_not_touch",
+                html_spaces_around_eq_in_attribute: true,
+                html_no_indent_inside_elements: "pre, code",
+            },
+            fallback,
+        );
+        assert.deepEqual(languageSpecific.indentation, { style: "space", size: 2, tabWidth: 3 });
+        assert.equal(languageSpecific.attributeStyle, "on_different_lines");
+        assert.equal(languageSpecific.spacesAroundAttributeEquals, true);
+        assert.deepEqual([...languageSpecific.noIndentInsideElements], ["pre", "code"]);
+
+        const compatibility = resolveHtmlFormattingOptions(
+            {
+                resharper_html_attribute_style: "first_attribute_on_single_line",
+                resharper_html_attribute_indent: "double_indent",
+                resharper_html_max_blank_lines_between_tags: "2",
+            },
+            fallback,
+        );
+        assert.equal(compatibility.attributeStyle, "first_attribute_on_single_line");
+        assert.equal(compatibility.attributeIndent, "double_indent");
+        assert.equal(compatibility.maxBlankLinesBetweenTags, 2);
+        assert.deepEqual(compatibility.indentation, { style: "tab", size: 8, tabWidth: 8 });
+
+        const standard = resolveHtmlFormattingOptions({ indent_style: "space", indent_size: 4 }, fallback);
+        assert.deepEqual(standard.indentation, { style: "space", size: 4, tabWidth: 4 });
+
+        const defaults = resolveHtmlFormattingOptions({}, {});
+        assert.equal(defaults.attributeStyle, "on_single_line");
+        assert.equal(defaults.attributeIndent, "single_indent");
+        assert.equal(defaults.maxBlankLinesBetweenTags, 1);
+        assert.deepEqual([...defaults.preserveSpacesInsideTags], ["pre", "textarea"]);
+        assert.equal(defaults.extraSpaces, "remove_all");
     });
 });
