@@ -86,6 +86,7 @@ export interface EditorConfigFallback {
     readonly insertSpaces?: boolean;
     readonly tabSize?: number;
     readonly maxLineLength?: number;
+    readonly profileFileName?: string;
     readonly lineEnding?: LineEnding;
     readonly insertFinalNewline?: boolean;
     readonly trimTrailingWhitespace?: boolean;

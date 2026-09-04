@@ -75,6 +75,7 @@ function getIndentationFallback(document: vscode.TextDocument, options: vscode.F
         insertSpaces: typeof editorInsertSpaces === "boolean" ? editorInsertSpaces : options.insertSpaces,
         tabSize: typeof editorTabSize === "number" ? editorTabSize : options.tabSize,
         maxLineLength: vscode.workspace.getConfiguration("editor", document.uri).get<number>("wordWrapColumn"),
+        profileFileName: "document.razor",
         lineEnding: document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n",
         insertFinalNewline: true,
         trimTrailingWhitespace: false,

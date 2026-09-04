@@ -1,5 +1,6 @@
 import { parse, type Props } from "editorconfig";
 import type * as vscode from "vscode";
+import { resolveDefaultEditorConfigProfile } from "./defaultProfile";
 import { defaultIndentationOptions } from "./defaults";
 import type {
     Charset,
@@ -25,20 +26,32 @@ export async function resolveEditorConfig(
     resource: vscode.Uri,
     fallback: EditorConfigFallback = {},
 ): Promise<WorkbenchEditorConfig> {
-    const properties = await parseEditorConfig(resource);
+    const [properties, profile] = await Promise.all([
+        parseEditorConfig(resource),
+        resolveDefaultEditorConfigProfile(resource, fallback.profileFileName),
+    ]);
+    const fixedProperties = { ...profile, ...properties };
 
     return {
-        indentation: resolveIndentationOptions(properties, fallback),
-        maxLineLength: resolveMaxLineLength(properties.max_line_length, fallback.maxLineLength),
-        csharpIndentation: resolveCSharpIndentationOptions(properties),
-        csharpNewLines: resolveCSharpNewLineOptions(properties),
-        csharpSpacing: resolveCSharpSpacingOptions(properties),
-        csharpWrapping: resolveCSharpWrappingOptions(properties),
-        html: resolveHtmlFormattingOptions(properties, fallback),
-        lineEnding: resolveLineEnding(properties.end_of_line, fallback.lineEnding),
-        insertFinalNewline: resolveBoolean(properties.insert_final_newline, fallback.insertFinalNewline, true),
-        trimTrailingWhitespace: resolveBoolean(properties.trim_trailing_whitespace, fallback.trimTrailingWhitespace, false),
-        charset: resolveCharset(properties.charset, fallback.charset),
+        indentation: resolveIndentationOptions(properties, fallback, profile),
+        maxLineLength: resolveMaxLineLength(properties.max_line_length, fallback.maxLineLength, profile.max_line_length),
+        csharpIndentation: resolveCSharpIndentationOptions(fixedProperties),
+        csharpNewLines: resolveCSharpNewLineOptions(fixedProperties),
+        csharpSpacing: resolveCSharpSpacingOptions(fixedProperties),
+        csharpWrapping: resolveCSharpWrappingOptions(fixedProperties),
+        html: resolveHtmlFormattingOptions(properties, fallback, profile),
+        lineEnding: resolveLineEnding(properties.end_of_line, fallback.lineEnding, profile.end_of_line),
+        insertFinalNewline: resolveBoolean(
+            properties.insert_final_newline,
+            fallback.insertFinalNewline,
+            resolveProfileBoolean(profile.insert_final_newline, true),
+        ),
+        trimTrailingWhitespace: resolveBoolean(
+            properties.trim_trailing_whitespace,
+            fallback.trimTrailingWhitespace,
+            resolveProfileBoolean(profile.trim_trailing_whitespace, false),
+        ),
+        charset: resolveCharset(properties.charset, fallback.charset, profile.charset),
         properties,
     };
 }
@@ -46,41 +59,58 @@ export async function resolveEditorConfig(
 export function resolveHtmlFormattingOptions(
     properties: Readonly<Props>,
     fallback: EditorConfigFallback = {},
+    profile: Readonly<Props> = {},
 ): HtmlFormattingOptions {
     return {
-        indentation: resolveHtmlIndentationOptions(properties, fallback),
-        spacesAroundAttributeEquals: resolveHtmlBoolean(properties, "html_spaces_around_eq_in_attribute", false),
-        spaceAfterLastAttribute: resolveHtmlBoolean(properties, "html_space_after_last_attribute", false),
-        spaceBeforeSelfClosing: resolveHtmlBoolean(properties, "html_space_before_self_closing", true),
+        indentation: resolveHtmlIndentationOptions(properties, fallback, profile),
+        spacesAroundAttributeEquals: resolveHtmlBoolean(properties, profile, "html_spaces_around_eq_in_attribute", false),
+        spaceAfterLastAttribute: resolveHtmlBoolean(properties, profile, "html_space_after_last_attribute", false),
+        spaceBeforeSelfClosing: resolveHtmlBoolean(properties, profile, "html_space_before_self_closing", true),
         attributeStyle: resolveHtmlEnum(
             properties,
+            profile,
             "html_attribute_style",
             ["on_single_line", "first_attribute_on_single_line", "on_different_lines", "do_not_touch"],
             "on_single_line",
         ),
         attributeIndent: resolveHtmlEnum(
             properties,
+            profile,
             "html_attribute_indent",
             ["single_indent", "double_indent", "align_by_first_attribute"],
             "single_indent",
         ),
-        maxBlankLinesBetweenTags: resolveHtmlNonNegativeInteger(properties, "html_max_blank_lines_between_tags", 1),
-        lineBreakBeforeAllElements: resolveHtmlBoolean(properties, "html_linebreak_before_all_elements", false),
-        lineBreakBeforeMultilineElements: resolveHtmlBoolean(properties, "html_linebreak_before_multiline_elements", true),
+        maxBlankLinesBetweenTags: resolveHtmlNonNegativeInteger(properties, profile, "html_max_blank_lines_between_tags", 1),
+        lineBreakBeforeAllElements: resolveHtmlBoolean(properties, profile, "html_linebreak_before_all_elements", false),
+        lineBreakBeforeMultilineElements: resolveHtmlBoolean(
+            properties,
+            profile,
+            "html_linebreak_before_multiline_elements",
+            true,
+        ),
         lineBreaksInsideMultilineElements: resolveHtmlBoolean(
             properties,
+            profile,
             "html_linebreaks_inside_tags_for_multiline_elements",
             true,
         ),
         lineBreaksInsideElementsWithChildElements: resolveHtmlBoolean(
             properties,
+            profile,
             "html_linebreaks_inside_tags_for_elements_with_child_elements",
             true,
         ),
-        noIndentInsideElements: resolveHtmlElementSet(properties, "html_no_indent_inside_elements", ["pre", "textarea"]),
-        preserveSpacesInsideTags: resolveHtmlElementSet(properties, "html_preserve_spaces_inside_tags", ["pre", "textarea"]),
+        noIndentInsideElements: resolveHtmlElementSet(properties, profile, "html_no_indent_inside_elements", [
+            "pre",
+            "textarea",
+        ]),
+        preserveSpacesInsideTags: resolveHtmlElementSet(properties, profile, "html_preserve_spaces_inside_tags", [
+            "pre",
+            "textarea",
+        ]),
         extraSpaces: resolveHtmlEnum(
             properties,
+            profile,
             "html_extra_spaces",
             ["remove_all", "leave_tabs", "leave_multiple", "leave_all"],
             "remove_all",
@@ -88,31 +118,57 @@ export function resolveHtmlFormattingOptions(
     };
 }
 
-function resolveHtmlIndentationOptions(properties: Readonly<Props>, fallback: EditorConfigFallback): IndentationOptions {
+function resolveHtmlIndentationOptions(
+    properties: Readonly<Props>,
+    fallback: EditorConfigFallback,
+    profile: Readonly<Props>,
+): IndentationOptions {
     const htmlProperties: Props = {
         indent_style:
             (resolveHtmlProperty(properties, "html_indent_style") as Props["indent_style"]) ?? properties.indent_style,
         indent_size: (resolveHtmlProperty(properties, "html_indent_size") as Props["indent_size"]) ?? properties.indent_size,
         tab_width: (resolveHtmlProperty(properties, "html_tab_width") as Props["tab_width"]) ?? properties.tab_width,
     };
-    return resolveIndentationOptions(htmlProperties, fallback);
+    const htmlProfile: Props = {
+        indent_style: (resolveHtmlProperty(profile, "html_indent_style") as Props["indent_style"]) ?? profile.indent_style,
+        indent_size: (resolveHtmlProperty(profile, "html_indent_size") as Props["indent_size"]) ?? profile.indent_size,
+        tab_width: (resolveHtmlProperty(profile, "html_tab_width") as Props["tab_width"]) ?? profile.tab_width,
+    };
+    return resolveIndentationOptions(htmlProperties, fallback, htmlProfile);
 }
 
-function resolveHtmlBoolean(properties: Readonly<Props>, name: string, defaultValue: boolean): boolean {
-    return resolveCustomBoolean(resolveHtmlProperty(properties, name), defaultValue);
+function resolveHtmlBoolean(
+    properties: Readonly<Props>,
+    profile: Readonly<Props>,
+    name: string,
+    defaultValue: boolean,
+): boolean {
+    return resolveCustomBoolean(
+        resolveHtmlProperty(properties, name),
+        resolveCustomBoolean(resolveHtmlProperty(profile, name), defaultValue),
+    );
 }
 
 function resolveHtmlEnum<T extends string>(
     properties: Readonly<Props>,
+    profile: Readonly<Props>,
     name: string,
     values: readonly T[],
     defaultValue: T,
 ): T {
+    const profileValue = resolveHtmlProperty(profile, name);
+    const profileDefault =
+        typeof profileValue === "string" && values.includes(profileValue as T) ? (profileValue as T) : defaultValue;
     const value = resolveHtmlProperty(properties, name);
-    return typeof value === "string" && values.includes(value as T) ? (value as T) : defaultValue;
+    return typeof value === "string" && values.includes(value as T) ? (value as T) : profileDefault;
 }
 
-function resolveHtmlNonNegativeInteger(properties: Readonly<Props>, name: string, defaultValue: number): number {
+function resolveHtmlNonNegativeInteger(
+    properties: Readonly<Props>,
+    profile: Readonly<Props>,
+    name: string,
+    defaultValue: number,
+): number {
     const value = resolveHtmlProperty(properties, name);
     if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
         return value;
@@ -120,11 +176,23 @@ function resolveHtmlNonNegativeInteger(properties: Readonly<Props>, name: string
     if (typeof value === "string" && /^\d+$/.test(value.trim())) {
         return Number.parseInt(value, 10);
     }
+    const profileValue = resolveHtmlProperty(profile, name);
+    if (typeof profileValue === "number" && Number.isInteger(profileValue) && profileValue >= 0) {
+        return profileValue;
+    }
+    if (typeof profileValue === "string" && /^\d+$/.test(profileValue.trim())) {
+        return Number.parseInt(profileValue, 10);
+    }
     return defaultValue;
 }
 
-function resolveHtmlElementSet(properties: Readonly<Props>, name: string, defaults: readonly string[]): ReadonlySet<string> {
-    const value = resolveHtmlProperty(properties, name);
+function resolveHtmlElementSet(
+    properties: Readonly<Props>,
+    profile: Readonly<Props>,
+    name: string,
+    defaults: readonly string[],
+): ReadonlySet<string> {
+    const value = resolveHtmlProperty(properties, name) ?? resolveHtmlProperty(profile, name);
     if (typeof value !== "string") {
         return new Set(defaults);
     }
@@ -141,12 +209,19 @@ function resolveHtmlProperty(properties: Readonly<Props>, name: string): unknown
     return properties[name] ?? properties[`resharper_${name}`];
 }
 
-export function resolveMaxLineLength(value: unknown, fallback?: number): number | undefined {
+export function resolveMaxLineLength(value: unknown, fallback?: number, profileValue?: unknown): number | undefined {
     if (value === "off") {
         return undefined;
     }
 
-    return positiveInteger(value) ?? positiveIntegerString(value) ?? positiveInteger(fallback) ?? 80;
+    return (
+        positiveInteger(value) ??
+        positiveIntegerString(value) ??
+        positiveInteger(fallback) ??
+        positiveInteger(profileValue) ??
+        positiveIntegerString(profileValue) ??
+        80
+    );
 }
 
 const csharpOpenBraceContexts = new Set<CSharpOpenBraceContext>([
@@ -208,9 +283,12 @@ export function resolveCSharpIndentationOptions(properties: Readonly<Props>): CS
 export function resolveIndentationOptions(
     properties: Readonly<Props>,
     fallback: EditorConfigFallback = {},
+    profile: Readonly<Props> = {},
 ): IndentationOptions {
-    const fallbackSize = positiveInteger(fallback.tabSize) ?? defaultIndentationOptions.size;
-    const style = resolveIndentationStyle(properties.indent_style, fallback.insertSpaces);
+    const profileSize =
+        positiveInteger(profile.indent_size) ?? positiveInteger(profile.tab_width) ?? defaultIndentationOptions.size;
+    const fallbackSize = positiveInteger(fallback.tabSize) ?? profileSize;
+    const style = resolveIndentationStyle(properties.indent_style, fallback.insertSpaces, profile.indent_style);
     const configuredTabWidth = positiveInteger(properties.tab_width);
     const configuredIndentSize = positiveInteger(properties.indent_size);
     const tabWidth = configuredTabWidth ?? configuredIndentSize ?? fallbackSize;
@@ -219,7 +297,11 @@ export function resolveIndentationOptions(
     return { style, size, tabWidth };
 }
 
-export function resolveLineEnding(value: Props["end_of_line"], fallback: LineEnding = "\n"): LineEnding {
+export function resolveLineEnding(
+    value: Props["end_of_line"],
+    fallback: LineEnding | undefined = undefined,
+    profileValue: Props["end_of_line"] = undefined,
+): LineEnding {
     if (value === "lf") {
         return "\n";
     }
@@ -228,7 +310,13 @@ export function resolveLineEnding(value: Props["end_of_line"], fallback: LineEnd
         return "\r\n";
     }
 
-    return fallback;
+    if (fallback) {
+        return fallback;
+    }
+    if (profileValue === "crlf") {
+        return "\r\n";
+    }
+    return "\n";
 }
 
 export function resolveBoolean(
@@ -243,7 +331,11 @@ export function resolveBoolean(
     return fallback ?? defaultValue;
 }
 
-export function resolveCharset(value: Props["charset"], fallback: Charset | undefined): Charset {
+export function resolveCharset(
+    value: Props["charset"],
+    fallback: Charset | undefined,
+    profileValue: Props["charset"] = undefined,
+): Charset {
     switch (value) {
         case "latin1":
             return "latin1";
@@ -255,7 +347,7 @@ export function resolveCharset(value: Props["charset"], fallback: Charset | unde
             return "utf-8-bom";
         case "utf-8":
         default:
-            return fallback ?? "utf-8";
+            return fallback ?? resolveProfileCharset(profileValue) ?? "utf-8";
     }
 }
 
@@ -271,7 +363,11 @@ async function parseEditorConfig(resource: vscode.Uri): Promise<Props> {
     }
 }
 
-function resolveIndentationStyle(configuredStyle: Props["indent_style"], insertSpaces: boolean | undefined): IndentationStyle {
+function resolveIndentationStyle(
+    configuredStyle: Props["indent_style"],
+    insertSpaces: boolean | undefined,
+    profileStyle: Props["indent_style"],
+): IndentationStyle {
     if (configuredStyle === "space") {
         return "space";
     }
@@ -284,7 +380,20 @@ function resolveIndentationStyle(configuredStyle: Props["indent_style"], insertS
         return insertSpaces ? "space" : "tab";
     }
 
+    if (profileStyle === "tab" || profileStyle === "space") {
+        return profileStyle as IndentationStyle;
+    }
     return defaultIndentationOptions.style;
+}
+
+function resolveProfileBoolean(value: unknown, defaultValue: boolean): boolean {
+    return resolveCustomBoolean(value, defaultValue);
+}
+
+function resolveProfileCharset(value: Props["charset"]): Charset | undefined {
+    return value === "latin1" || value === "utf-16be" || value === "utf-16le" || value === "utf-8-bom" || value === "utf-8"
+        ? (value as Charset)
+        : undefined;
 }
 
 function positiveInteger(value: unknown): number | undefined {

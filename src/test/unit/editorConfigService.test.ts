@@ -1,12 +1,21 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import * as path from "node:path";
 import { describe, it } from "node:test";
 import {
+    resolveEditorConfig,
     resolveCSharpNewLineOptions,
     resolveCSharpSpacingOptions,
     resolveCSharpWrappingOptions,
     resolveHtmlFormattingOptions,
     resolveMaxLineLength,
 } from "../../core/editorConfig";
+import {
+    defaultProfilePath,
+    initializeDefaultEditorConfigProfile,
+    resolveDefaultEditorConfigProfile,
+} from "../../core/editorConfig/defaultProfile";
 
 describe("EditorConfig options", () => {
     it("uses Roslyn-compatible defaults", () => {
@@ -147,5 +156,106 @@ describe("EditorConfig options", () => {
         assert.equal(defaults.maxBlankLinesBetweenTags, 1);
         assert.deepEqual([...defaults.preserveSpacesInsideTags], ["pre", "textarea"]);
         assert.equal(defaults.extraSpaces, "remove_all");
+    });
+
+    it("parses fixed defaults from the built-in EditorConfig Profile by document type", async () => {
+        const profileFile = path.join(process.cwd(), ...defaultProfilePath);
+        initializeDefaultEditorConfigProfile(await readFile(profileFile));
+
+        const csharpProfile = await resolveDefaultEditorConfigProfile({ path: "/Example.cs", fsPath: "Example.cs" } as never);
+        const razorProfile = await resolveDefaultEditorConfigProfile({
+            path: "/Example.razor",
+            fsPath: "Example.razor",
+        } as never);
+
+        assert.equal(csharpProfile.csharp_new_line_before_open_brace, "all");
+        assert.equal(csharpProfile.csharp_space_around_binary_operators, "before_and_after");
+        assert.equal(razorProfile.html_attribute_style, "on_single_line");
+        assert.equal(razorProfile.html_space_before_self_closing, true);
+        assert.equal(razorProfile.csharp_new_line_before_open_brace, "all");
+    });
+
+    it("keeps dynamic editor fallbacks ahead of Profile defaults", () => {
+        const profile = { indent_style: "space", indent_size: 4, tab_width: 4 };
+        assert.deepEqual(resolveHtmlFormattingOptions({}, { insertSpaces: false, tabSize: 8 }, profile).indentation, {
+            style: "tab",
+            size: 8,
+            tabWidth: 8,
+        });
+        assert.deepEqual(
+            resolveHtmlFormattingOptions({ html_indent_size: 2 }, { insertSpaces: false, tabSize: 8 }, profile).indentation,
+            { style: "tab", size: 2, tabWidth: 2 },
+        );
+        assert.equal(resolveMaxLineLength(undefined, 120, 80), 120);
+        assert.equal(resolveMaxLineLength(100, 120, 80), 100);
+    });
+
+    it("resolves dynamic document state before fixed Profile defaults", async () => {
+        const profileFile = path.join(process.cwd(), ...defaultProfilePath);
+        initializeDefaultEditorConfigProfile(await readFile(profileFile));
+        const resource = { scheme: "untitled", path: "/Example.cs", fsPath: "Example.cs" } as never;
+        const resolved = await resolveEditorConfig(resource, {
+            insertSpaces: false,
+            tabSize: 6,
+            maxLineLength: 120,
+            profileFileName: "document.cs",
+            lineEnding: "\r\n",
+            insertFinalNewline: false,
+            trimTrailingWhitespace: true,
+            charset: "utf-8-bom",
+        });
+
+        assert.deepEqual(resolved.indentation, { style: "tab", size: 6, tabWidth: 6 });
+        assert.equal(resolved.maxLineLength, 120);
+        assert.equal(resolved.lineEnding, "\r\n");
+        assert.equal(resolved.insertFinalNewline, false);
+        assert.equal(resolved.trimTrailingWhitespace, true);
+        assert.equal(resolved.charset, "utf-8-bom");
+        assert.equal(resolved.csharpNewLines.beforeOpenBrace, "all");
+    });
+
+    it("always resolves project EditorConfig properties before dynamic state and the built-in Profile", async () => {
+        const profileFile = path.join(process.cwd(), ...defaultProfilePath);
+        initializeDefaultEditorConfigProfile(await readFile(profileFile));
+        const directory = await mkdtemp(path.join(tmpdir(), "csharp-workbench-editorconfig-"));
+
+        try {
+            await writeFile(
+                path.join(directory, ".editorconfig"),
+                [
+                    "root = true",
+                    "",
+                    "[*]",
+                    "indent_style = space",
+                    "indent_size = 2",
+                    "max_line_length = 100",
+                    "insert_final_newline = true",
+                    "",
+                    "[*.cs]",
+                    "csharp_new_line_before_open_brace = none",
+                    "",
+                    "[*.razor]",
+                    "html_attribute_style = on_different_lines",
+                ].join("\n"),
+            );
+
+            const fallback = { insertSpaces: false, tabSize: 8, maxLineLength: 120, insertFinalNewline: false };
+            const csharp = await resolveEditorConfig(
+                { scheme: "file", path: "/Example.cs", fsPath: path.join(directory, "Example.cs") } as never,
+                fallback,
+            );
+            const razor = await resolveEditorConfig(
+                { scheme: "file", path: "/Example.razor", fsPath: path.join(directory, "Example.razor") } as never,
+                fallback,
+            );
+
+            assert.deepEqual(csharp.indentation, { style: "space", size: 2, tabWidth: 2 });
+            assert.equal(csharp.maxLineLength, 100);
+            assert.equal(csharp.insertFinalNewline, true);
+            assert.equal(csharp.csharpNewLines.beforeOpenBrace, "none");
+            assert.equal(razor.html.attributeStyle, "on_different_lines");
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
     });
 });

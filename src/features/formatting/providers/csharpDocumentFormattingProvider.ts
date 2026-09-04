@@ -118,6 +118,7 @@ function getEditorConfigFallback(document: vscode.TextDocument, options: vscode.
         insertSpaces: options.insertSpaces,
         tabSize: options.tabSize,
         maxLineLength: vscode.workspace.getConfiguration("editor", document.uri).get<number>("wordWrapColumn"),
+        profileFileName: "document.cs",
         lineEnding: document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n",
     };
 }

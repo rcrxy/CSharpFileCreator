@@ -5,6 +5,24 @@ returned by the `editorconfig` parser does not mean that Workbench implements it
 
 ## EditorConfig
 
+### Built-In Default Profile
+
+C# Workbench expresses its fixed default formatting style through the bundled
+[default EditorConfig Profile](src/core/editorConfig/profiles/default.editorconfig). The Profile is parsed with the
+same EditorConfig section matching used for project files, including separate defaults for C#, Razor, and CSHTML.
+
+The built-in Profile is the final fallback only. A matching project `.editorconfig` always has priority over it.
+Values derived from the active editor or document remain dynamic and are resolved before the Profile, so the Profile
+does not force a fixed tab size, line ending, maximum line length, final newline, whitespace cleanup, or charset over
+the current editing context.
+
+The general resolution order is:
+
+1. Matching project `.editorconfig` property.
+2. Current VS Code editor or document state, for properties with a dynamic equivalent.
+3. Bundled default EditorConfig Profile.
+4. Defensive code fallback, used only if the Profile cannot provide a valid value.
+
 ### Applied Properties
 
 | Property       | Supported values        | Behavior                                                                                |
@@ -115,22 +133,22 @@ formatted by the configured `CSharpCodeFormatter`.
 
 HTML/Razor tag formatting uses this priority for every applicable setting:
 
-1. The unprefixed `html_*` language-specific property.
-2. The compatible `resharper_html_*` property, then the equivalent standard EditorConfig property when one exists.
+1. The unprefixed `html_*` property from the project `.editorconfig`.
+2. The compatible `resharper_html_*` property, then the equivalent standard project EditorConfig property when one exists.
 3. The current VS Code editor setting.
-4. The C# Workbench default shown in the table above.
+4. The corresponding property from the bundled default EditorConfig Profile.
 
 For indentation, the complete chain is `html_indent_*` → `resharper_html_indent_*` → standard `indent_*`/
-`tab_width` → current `TextEditor.options` → Workbench defaults. HTML rules without a standard EditorConfig or VS Code
-equivalent fall back directly from their language-specific forms to the Workbench default.
+`tab_width` → current `TextEditor.options` → bundled Profile. HTML rules without a standard EditorConfig or VS Code
+equivalent fall back directly from their project language-specific forms to the bundled Profile.
 
 ### Resolution Priority
 
-Indentation properties and `max_line_length` are resolved independently using this priority:
+Dynamic indentation properties and `max_line_length` are resolved independently using this priority:
 
 1. Matching `.editorconfig` property.
 2. Current VS Code editor options.
-3. C# Workbench default.
+3. Bundled default EditorConfig Profile.
 
 The VS Code fallback values are:
 
@@ -140,7 +158,7 @@ The VS Code fallback values are:
 | Indentation size and tab width | `TextEditor.options.tabSize`      |
 | Maximum line length            | `editor.wordWrapColumn`           |
 
-The Workbench defaults are:
+The bundled Profile currently contains:
 
 ```ini
 indent_style = space

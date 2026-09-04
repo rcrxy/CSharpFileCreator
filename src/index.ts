@@ -8,9 +8,9 @@ const features: readonly ExtensionFeature[] = [registerFileCreationFeature, regi
 /**
  * 激活扩展，并依次注册各个独立功能模块。
  */
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
     for (const registerFeature of features) {
-        registerFeature(context);
+        await registerFeature(context);
     }
 }
 
