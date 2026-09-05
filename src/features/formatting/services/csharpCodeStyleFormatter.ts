@@ -22,7 +22,8 @@ interface LexicalState {
 }
 
 const controlFlowKeywords = ["if", "for", "foreach", "while", "switch", "catch", "using", "lock", "fixed"];
-const binaryOperatorPattern = /(\?\?|&&|\|\||==|!=|<=|>=|<<|>>|[+\-*/%&|^<>])/g;
+const binaryOperatorPattern =
+    /(\?\?=|<<=|>>>=|>>=|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|\?\?|&&|\|\||==|!=|<=|>=|>>>|<<|>>|[+\-*/%&|^<>])/g;
 
 /**
  * 格式化 C# 换行、空格与单行保留规则，不负责最终层级缩进。
@@ -1071,12 +1072,9 @@ function isUnaryOrNonBinaryOperator(source: string, index: number, operator: str
     if ((operator === "+" || operator === "-") && (previous === operator || next === operator)) {
         return true;
     }
-    const canEndGenericCall = operator === ">" && next === "(";
-    if (
-        (operator === "<" || operator === ">") &&
-        /[A-Za-z0-9_]/.test(previous) &&
-        (/[A-Za-z_]/.test(next) || canEndGenericCall)
-    ) {
+    const isGenericAngleOperator = operator === "<" || /^>+$/.test(operator);
+    const canFollowGeneric = /^>+$/.test(operator) && /[({[\]),;:?.]/.test(next);
+    if (isGenericAngleOperator && /[A-Za-z0-9_]/.test(previous) && (/[A-Za-z_]/.test(next) || canFollowGeneric)) {
         return looksLikeGenericAngleBracket(source, index, operator);
     }
 
