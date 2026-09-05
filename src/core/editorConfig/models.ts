@@ -40,6 +40,9 @@ export interface CSharpNewLineOptions {
     readonly beforeElse: boolean;
     readonly beforeCatch: boolean;
     readonly beforeFinally: boolean;
+    readonly beforeMembersInObjectInitializers: boolean;
+    readonly beforeMembersInAnonymousTypes: boolean;
+    readonly betweenQueryExpressionClauses: boolean;
 }
 
 export type CSharpBinaryOperatorSpacing = "before_and_after" | "none" | "ignore";

@@ -36,6 +36,9 @@ const csharpNewLines: CSharpNewLineOptions = {
     beforeElse: false,
     beforeCatch: false,
     beforeFinally: false,
+    beforeMembersInObjectInitializers: false,
+    beforeMembersInAnonymousTypes: false,
+    betweenQueryExpressionClauses: false,
 };
 
 function format(

@@ -24,6 +24,9 @@ describe("EditorConfig options", () => {
             beforeElse: true,
             beforeCatch: true,
             beforeFinally: true,
+            beforeMembersInObjectInitializers: true,
+            beforeMembersInAnonymousTypes: true,
+            betweenQueryExpressionClauses: true,
         });
         assert.deepEqual(resolveCSharpSpacingOptions({}), {
             afterControlFlowKeyword: true,
@@ -48,6 +51,9 @@ describe("EditorConfig options", () => {
             csharp_new_line_before_else: "false",
             csharp_new_line_before_catch: false,
             csharp_new_line_before_finally: "false",
+            csharp_new_line_before_members_in_object_initializers: "false",
+            csharp_new_line_before_members_in_anonymous_types: false,
+            csharp_new_line_between_query_expression_clauses: "false",
         });
 
         assert.ok(newLines.beforeOpenBrace instanceof Set);
@@ -55,6 +61,9 @@ describe("EditorConfig options", () => {
         assert.equal(newLines.beforeElse, false);
         assert.equal(newLines.beforeCatch, false);
         assert.equal(newLines.beforeFinally, false);
+        assert.equal(newLines.beforeMembersInObjectInitializers, false);
+        assert.equal(newLines.beforeMembersInAnonymousTypes, false);
+        assert.equal(newLines.betweenQueryExpressionClauses, false);
 
         assert.deepEqual(
             resolveCSharpSpacingOptions({

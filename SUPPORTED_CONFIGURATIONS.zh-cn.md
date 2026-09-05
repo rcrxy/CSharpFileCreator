@@ -70,6 +70,9 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 | `csharp_new_line_before_else`       | `true`、`false`                                  | `true` |
 | `csharp_new_line_before_catch`      | `true`、`false`                                  | `true` |
 | `csharp_new_line_before_finally`    | `true`、`false`                                  | `true` |
+| `csharp_new_line_before_members_in_object_initializers` | `true`、`false` | `true` |
+| `csharp_new_line_before_members_in_anonymous_types` | `true`、`false` | `true` |
+| `csharp_new_line_between_query_expression_clauses` | `true`、`false` | `true` |
 
 支持的大括号上下文包括 `accessors`、`anonymous_methods`、`anonymous_types`、`control_blocks`、`events`、
 `indexers`、`lambdas`、`local_functions`、`methods`、`object_collection_array_initializers`、`properties` 和
@@ -79,6 +82,9 @@ Razor 控制块同样应用这些换行规则。其左花括号使用 `csharp_ne
 `control_blocks` 上下文；`csharp_new_line_before_else`、`csharp_new_line_before_catch` 和
 `csharp_new_line_before_finally` 分别控制连续关键字是否与前一个右花括号同行。Razor `@do`/`while` 固定格式化为
 `} while (...);`。
+
+对象初始化器与匿名类型规则启用时，会将首个成员之后的成员分别放到新行；关闭时则用空格连接。查询表达式规则以
+相同方式控制顶层查询子句之间的换行。嵌套初始化器和嵌套查询表达式会分别处理。
 
 ### C# 空格
 

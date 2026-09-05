@@ -12,6 +12,9 @@ const defaultNewLines: CSharpNewLineOptions = {
     beforeElse: true,
     beforeCatch: true,
     beforeFinally: true,
+    beforeMembersInObjectInitializers: true,
+    beforeMembersInAnonymousTypes: true,
+    betweenQueryExpressionClauses: true,
 };
 
 const defaultSpacing: CSharpSpacingOptions = {
@@ -147,6 +150,67 @@ describe("C# code-style formatting", () => {
         assert.match(joined, /} else/);
         assert.match(joined, /} catch/);
         assert.match(joined, /} finally/);
+    });
+
+    it("formats object and anonymous initializer members on separate or shared lines", () => {
+        const source = [
+            "var item = new Item { Name = \"A\", Values = GetValues(1, 2), Child = new Item { Name = \"B\", Age = 2 } };",
+            "var anonymous = new { Name = \"A\", Coordinates = (1, 2) };",
+            "var values = new[] { 1, 2, 3 };",
+        ].join("\n");
+
+        const separate = format(source);
+        assert.match(separate, /Name = \"A\",\nValues = GetValues\(1, 2\),\nChild/);
+        assert.match(separate, /new Item\n\{ Name = \"B\",\nAge = 2 \}/);
+        assert.match(separate, /new\n\{ Name = \"A\",\nCoordinates = \(1, 2\) \}/);
+        assert.match(separate, /new\[\]\n\{ 1, 2, 3 \}/);
+
+        const shared = format(separate, {
+            newLines: {
+                beforeMembersInObjectInitializers: false,
+                beforeMembersInAnonymousTypes: false,
+            },
+        });
+        assert.match(shared, /Name = \"A\", Values = GetValues\(1, 2\), Child/);
+        assert.match(shared, /new Item\n\{ Name = \"B\", Age = 2 \}/);
+        assert.match(shared, /new\n\{ Name = \"A\", Coordinates = \(1, 2\) \}/);
+    });
+
+    it("formats query expression clauses on separate or shared lines", () => {
+        const source = [
+            "var query = from item in items where item.IsActive orderby item.Name select item;",
+            "var nested = (from category in categories select (from item in category.Items where item.IsActive select item));",
+        ].join("\n");
+        const separate = format(source);
+        assert.equal(
+            separate,
+            [
+                "var query = from item in items",
+                "where item.IsActive",
+                "orderby item.Name",
+                "select item;",
+                "var nested = (from category in categories",
+                "select (from item in category.Items",
+                "where item.IsActive",
+                "select item));",
+            ].join("\n"),
+        );
+
+        const shared = format(separate, { newLines: { betweenQueryExpressionClauses: false } });
+        assert.equal(shared, source);
+
+        const commented = [
+            "var commented = from item in items",
+            "where item.IsActive // keep the following clause active",
+            "select item;",
+        ].join("\n");
+        assert.equal(
+            format(commented, { newLines: { betweenQueryExpressionClauses: false } }),
+            [
+                "var commented = from item in items where item.IsActive // keep the following clause active",
+                "select item;",
+            ].join("\n"),
+        );
     });
 
     it("formats control-flow keywords, commas, casts, inheritance colons, and for semicolons", () => {

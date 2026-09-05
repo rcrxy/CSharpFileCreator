@@ -74,6 +74,9 @@ flows include `@if`/`else if`/`else`, `@for`, `@foreach`, `@while`, `@switch`, `
 | `csharp_new_line_before_else`       | `true`, `false`                                                   | `true`  |
 | `csharp_new_line_before_catch`      | `true`, `false`                                                   | `true`  |
 | `csharp_new_line_before_finally`    | `true`, `false`                                                   | `true`  |
+| `csharp_new_line_before_members_in_object_initializers` | `true`, `false` | `true` |
+| `csharp_new_line_before_members_in_anonymous_types` | `true`, `false` | `true` |
+| `csharp_new_line_between_query_expression_clauses` | `true`, `false` | `true` |
 
 Supported brace contexts are `accessors`, `anonymous_methods`, `anonymous_types`, `control_blocks`, `events`,
 `indexers`, `lambdas`, `local_functions`, `methods`, `object_collection_array_initializers`, `properties`, and `types`.
@@ -82,6 +85,10 @@ Razor control blocks also apply these new-line rules. `csharp_new_line_before_op
 context for their opening braces, while `csharp_new_line_before_else`, `csharp_new_line_before_catch`, and
 `csharp_new_line_before_finally` control whether those continuation keywords follow the previous closing brace on the
 same line. Razor `@do`/`while` is formatted as `} while (...);`.
+
+The object-initializer and anonymous-type rules place members after the first member on separate lines when enabled,
+or join them with spaces when disabled. The query-expression rule similarly controls line breaks between top-level
+query clauses. Nested initializers and nested query expressions are handled independently.
 
 ### C# Spacing
 

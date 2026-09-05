@@ -261,6 +261,18 @@ export function resolveCSharpNewLineOptions(properties: Readonly<Props>): CSharp
         beforeElse: resolveCustomBoolean(properties.csharp_new_line_before_else, true),
         beforeCatch: resolveCustomBoolean(properties.csharp_new_line_before_catch, true),
         beforeFinally: resolveCustomBoolean(properties.csharp_new_line_before_finally, true),
+        beforeMembersInObjectInitializers: resolveCustomBoolean(
+            properties.csharp_new_line_before_members_in_object_initializers,
+            true,
+        ),
+        beforeMembersInAnonymousTypes: resolveCustomBoolean(
+            properties.csharp_new_line_before_members_in_anonymous_types,
+            true,
+        ),
+        betweenQueryExpressionClauses: resolveCustomBoolean(
+            properties.csharp_new_line_between_query_expression_clauses,
+            true,
+        ),
     };
 }
 
