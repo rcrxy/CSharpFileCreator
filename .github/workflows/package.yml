@@ -1,0 +1,67 @@
+name: Package Extension
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm run pretest
+
+      - name: Verify version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "package.json version: $PACKAGE_VERSION"
+            echo "tag version: $TAG_VERSION"
+            exit 1
+          fi
+
+      - name: Package VSIX
+        shell: bash
+        run: |
+          mkdir -p dist
+          VERSION=$(node -p "require('./package.json').version")
+          npx @vscode/vsce package \
+            --out "dist/csharp-workbench-${VERSION}.vsix"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: csharp-workbench-vsix
+          path: dist/*.vsix
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --generate-notes
+
+          gh release upload "$GITHUB_REF_NAME" dist/*.vsix --clobber
