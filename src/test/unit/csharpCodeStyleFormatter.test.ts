@@ -333,13 +333,20 @@ describe("C# code-style formatting", () => {
     });
 
     it("formats binary operators without changing unary operators or generic arguments", () => {
-        const source = "List<string> values = left+right*2; value=-value; index++; if(a<b&&b>c&&a<=c&&b!=c) { }";
+        const source =
+            "List<string> values = GetRequiredService<HomeViewModel>(); total += value; value = left+right*2; value=-value; index++; if(a<b&&b>c&&a<=c&&b!=c) { }";
         const spaced = format(source);
         assert.match(spaced, /List<string>/);
+        assert.match(spaced, /GetRequiredService<HomeViewModel>\(\)/);
+        assert.match(spaced, /total \+= value/);
         assert.match(spaced, /left \+ right \* 2/);
         assert.match(spaced, /value=-value/);
         assert.match(spaced, /index\+\+/);
         assert.match(spaced, /a < b && b > c && a <= c && b != c/);
+        assert.match(
+            format("var shifted = bits>>count; var unsigned = bits>>>count;"),
+            /bits >> count; var unsigned = bits >>> count/,
+        );
 
         const compact = format("result = left + right && ready;", {
             spacing: { aroundBinaryOperators: "none" },
@@ -350,6 +357,41 @@ describe("C# code-style formatting", () => {
             spacing: { aroundBinaryOperators: "ignore" },
         });
         assert.match(ignored, /left  \+right/);
+    });
+
+    it("keeps compound assignment operators intact", () => {
+        const source =
+            "total+=value; total-=value; total*=value; total/=value; total%=value; flags&=mask; flags|=mask; flags^=mask; value??=fallback; bits<<=1; bits>>=1; bits>>>=1;";
+        const result = format(source);
+        assert.match(result, /total \+= value/);
+        assert.match(result, /total -= value/);
+        assert.match(result, /total \*= value/);
+        assert.match(result, /total \/= value/);
+        assert.match(result, /total %= value/);
+        assert.match(result, /flags &= mask/);
+        assert.match(result, /flags \|= mask/);
+        assert.match(result, /flags \^= mask/);
+        assert.match(result, /value \?\?= fallback/);
+        assert.match(result, /bits <<= 1/);
+        assert.match(result, /bits >>= 1/);
+        assert.match(result, /bits >>>= 1/);
+    });
+
+    it("preserves generic base types before declaration braces", () => {
+        const source = [
+            "public sealed partial class Calculator(int initialValue) : IProbe<int>",
+            "{",
+            "Dictionary<string, List<int>> values = new();",
+            "Dictionary<string, List<List<int>>> nested = new();",
+            "IProbe<int>[] probes = [];",
+            "var type = typeof(IProbe<int>);",
+            "}",
+        ].join("\n");
+        assert.match(format(source), /: IProbe<int>\n\{/);
+        assert.match(format(source), /Dictionary<string, List<int>> values/);
+        assert.match(format(source), /Dictionary<string, List<List<int>>> nested/);
+        assert.match(format(source), /IProbe<int>\[\] probes/);
+        assert.match(format(source), /typeof\(IProbe<int>\)/);
     });
 
     it("preserves strings, characters, raw strings, and comments", () => {

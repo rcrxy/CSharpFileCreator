@@ -20,6 +20,9 @@ interface LineSyntax {
     readonly leadingCloseBraces: number;
     readonly openBraces: number;
     readonly closeBraces: number;
+    readonly leadingCloseDelimiters: number;
+    readonly openDelimiters: number;
+    readonly closeDelimiters: number;
     readonly containsSwitch: boolean;
 }
 
@@ -38,6 +41,7 @@ export function formatCSharpIndentation(source: string, options: CSharpFormattin
     const switches: SwitchScope[] = [];
     const lexicalState: LexicalState = { mode: "normal", rawQuoteCount: 0 };
     let braceDepth = 0;
+    let delimiterDepth = 0;
     let embeddedStatementDepth = 0;
     let pendingSwitch = false;
 
@@ -51,10 +55,11 @@ export function formatCSharpIndentation(source: string, options: CSharpFormattin
 
         const syntax = scanLineSyntax(line, lexicalState);
         const effectiveDepth = Math.max(0, braceDepth - syntax.leadingCloseBraces);
+        const effectiveDelimiterDepth = Math.max(0, delimiterDepth - syntax.leadingCloseDelimiters);
         removeClosedSwitchScopes(switches, effectiveDepth);
         const activeSwitch = switches.at(-1);
         const isCaseLabel = caseLabelPattern.test(trimmedLine);
-        const isOrdinaryLabel = !isCaseLabel && labelPattern.test(trimmedLine);
+        const isOrdinaryLabel = effectiveDelimiterDepth === 0 && !isCaseLabel && labelPattern.test(trimmedLine);
         const isBraceLine = /^[{}]/.test(trimmedLine);
         const isCaseBlockBrace = Boolean(
             activeSwitch?.hasActiveCase && trimmedLine.startsWith("{") && effectiveDepth === activeSwitch.bodyDepth,
@@ -89,6 +94,7 @@ export function formatCSharpIndentation(source: string, options: CSharpFormattin
                 Number(options.csharpIndentation.indentBraces);
         }
 
+        indentDepth += effectiveDelimiterDepth;
         formattedLines.push(indentUnit.repeat(Math.max(0, indentDepth)) + trimmedLine);
 
         if (isCaseLabel && activeSwitch) {
@@ -106,6 +112,7 @@ export function formatCSharpIndentation(source: string, options: CSharpFormattin
 
         const depthBeforeUpdate = braceDepth;
         braceDepth = Math.max(0, braceDepth + syntax.openBraces - syntax.closeBraces);
+        delimiterDepth = Math.max(0, delimiterDepth + syntax.openDelimiters - syntax.closeDelimiters);
 
         if (pendingSwitch && syntax.openBraces > 0) {
             switches.push({ bodyDepth: depthBeforeUpdate + 1, hasActiveCase: false });
@@ -192,6 +199,9 @@ function scanLineSyntax(line: string, state: LexicalState): LineSyntax {
     let openBraces = 0;
     let closeBraces = 0;
     let leadingCloseBraces = 0;
+    let openDelimiters = 0;
+    let closeDelimiters = 0;
+    let leadingCloseDelimiters = 0;
     let containsSwitch = false;
     let sawCodeToken = false;
     let identifier = "";
@@ -274,6 +284,14 @@ function scanLineSyntax(line: string, state: LexicalState): LineSyntax {
             if (!sawCodeToken) {
                 leadingCloseBraces++;
             }
+        } else if (character === "(" || character === "[") {
+            openDelimiters++;
+            sawCodeToken = true;
+        } else if (character === ")" || character === "]") {
+            closeDelimiters++;
+            if (!sawCodeToken) {
+                leadingCloseDelimiters++;
+            }
         } else if (!/\s/.test(character)) {
             sawCodeToken = true;
         }
@@ -284,7 +302,15 @@ function scanLineSyntax(line: string, state: LexicalState): LineSyntax {
         state.mode = "normal";
     }
 
-    return { leadingCloseBraces, openBraces, closeBraces, containsSwitch };
+    return {
+        leadingCloseBraces,
+        openBraces,
+        closeBraces,
+        leadingCloseDelimiters,
+        openDelimiters,
+        closeDelimiters,
+        containsSwitch,
+    };
 }
 
 function countRun(line: string, start: number, character: string): number {
