@@ -10,8 +10,10 @@ Workbench 已经实现其对应行为。
 ### 内置默认 Profile
 
 C# Workbench 通过内置的[默认 EditorConfig Profile](src/core/editorConfig/profiles/default.editorconfig)表达固定的
-默认格式化风格。该 Profile 使用与项目配置相同的 EditorConfig section 匹配机制解析，并为 C#、Razor 和
-CSHTML 提供对应的默认配置。
+默认格式化风格。该 Profile 使用与项目配置相同的 EditorConfig section 匹配机制解析，并显式覆盖 Workbench
+当前实际应用的全部属性。已支持的 C# 格式化属性使用 Microsoft/.NET SDK 配置值；HTML 属性使用对应的
+JetBrains ReSharper/Rider HTML 规则名称与兼容值；上游没有公开默认值的属性使用文档中列出的 Workbench
+兼容默认值。
 
 内置 Profile 只作为最终 fallback。项目中匹配的 `.editorconfig` 始终拥有更高优先级。依赖当前编辑器或文档
 状态的值会在 Profile 之前动态解析，因此 Profile 不会强制覆盖当前编辑上下文中的 Tab 宽度、换行符、最大行宽、
@@ -21,7 +23,7 @@ CSHTML 提供对应的默认配置。
 
 1. 项目中匹配的 `.editorconfig` 属性。
 2. 对于存在动态等价项的属性，使用当前 VS Code 编辑器或文档状态。
-3. 扩展内置的默认 EditorConfig Profile。
+3. 使用内置 EditorConfig Profile，其中的值来自 Microsoft、JetBrains 或文档化的兼容默认值。
 4. 仅当 Profile 无法提供有效值时使用代码中的防御性 fallback。
 
 ### 已应用的通用属性
@@ -185,11 +187,12 @@ HTML/Razor 标签格式化对每项适用配置使用以下优先级：
 1. 项目 `.editorconfig` 中无前缀的 `html_*` 属性。
 2. 兼容的 `resharper_html_*` 属性；存在等价标准属性时，再使用项目中的标准 EditorConfig 属性。
 3. 当前 VS Code 编辑器设置。
-4. 内置默认 EditorConfig Profile 中的对应属性。
+4. 内置 Profile 中与 ReSharper/Rider HTML 规则兼容的值。
+5. Workbench 的运行时防御性默认值。
 
 缩进的完整解析链为：`html_indent_*` → `resharper_html_indent_*` → 标准 `indent_*`/`tab_width` → 当前
-`TextEditor.options` → 内置 Profile。对于不存在标准 EditorConfig 或 VS Code 等价项的 HTML 规则，会从项目的
-语言专属配置直接回退到内置 Profile。
+`TextEditor.options` → 内置 Profile → 运行时默认值。对于不存在标准 EditorConfig 或 VS Code 等价项的 HTML
+规则，会从项目的语言专属配置回退到内置 Profile，最后再使用 Workbench 的运行时防御性默认值。
 
 ### 动态配置解析优先级
 
@@ -197,7 +200,7 @@ HTML/Razor 标签格式化对每项适用配置使用以下优先级：
 
 1. 匹配的项目 `.editorconfig` 属性。
 2. 当前 VS Code 编辑器选项。
-3. 内置默认 EditorConfig Profile。
+3. 使用内置 EditorConfig Profile。
 
 VS Code fallback 映射如下：
 
@@ -207,13 +210,33 @@ VS Code fallback 映射如下：
 | 缩进宽度和 Tab 宽度 | `TextEditor.options.tabSize`      |
 | 最大行宽            | `editor.wordWrapColumn`           |
 
-内置 Profile 当前包含：
+内置 Profile 覆盖当前全部已应用属性，其配置来源顺序为：
+
+1. C# 格式化属性优先采用 Microsoft/.NET SDK 默认配置。
+2. Razor/CSHTML 格式化采用 JetBrains ReSharper/Rider HTML 属性定义。
+3. 上游未公开默认值或属性本身属于兼容别名时，采用 Workbench 兼容默认值。
+
+其中通用和文档类型 section 包括：
 
 ```ini
+[*]
 indent_style = space
+max_line_length = 120
+end_of_line = lf
+trim_trailing_whitespace = false
+charset = utf-8
+
+[*.cs]
 indent_size = 4
 tab_width = 4
-max_line_length = 80
+insert_final_newline = false
+
+[*.{razor,cshtml}]
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
+html_attribute_style = on_single_line
+html_attribute_wrap = off
 ```
 
 ### 示例
