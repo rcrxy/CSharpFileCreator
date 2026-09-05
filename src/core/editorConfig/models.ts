@@ -1,5 +1,7 @@
 import type { Props } from "editorconfig";
 
+export type ResolvedEditorConfigProperties = Readonly<Record<string, string>>;
+
 export type IndentationStyle = "space" | "tab";
 export type LineEnding = "\n" | "\r\n";
 export type Charset = "utf-8" | "utf-8-bom" | "utf-16be" | "utf-16le" | "latin1";

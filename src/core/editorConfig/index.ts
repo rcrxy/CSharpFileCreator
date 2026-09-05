@@ -1,5 +1,6 @@
 export {
     resolveEditorConfig,
+    resolveRawEditorConfig,
     resolveCSharpIndentationOptions,
     resolveCSharpNewLineOptions,
     resolveCSharpSpacingOptions,
@@ -30,5 +31,6 @@ export type {
     IndentationOptions,
     IndentationStyle,
     LineEnding,
+    ResolvedEditorConfigProperties,
     WorkbenchEditorConfig,
 } from "./models";

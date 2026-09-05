@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CSharpWorkbench.Formatting.Core/CSharpWorkbench.Formatting.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CSharpWorkbench.Formatting.Core.Tests/CSharpWorkbench.Formatting.Core.Tests.csproj" />
+  </Folder>
+</Solution>

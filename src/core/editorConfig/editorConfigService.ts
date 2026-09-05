@@ -21,8 +21,14 @@ import type {
     IndentationOptions,
     IndentationStyle,
     LineEnding,
+    ResolvedEditorConfigProperties,
     WorkbenchEditorConfig,
 } from "./models";
+
+export async function resolveRawEditorConfig(resource: vscode.Uri): Promise<ResolvedEditorConfigProperties> {
+    const properties = await parseEditorConfig(resource);
+    return Object.fromEntries(Object.entries(properties).map(([key, value]) => [key, String(value)]));
+}
 
 export async function resolveEditorConfig(
     resource: vscode.Uri,

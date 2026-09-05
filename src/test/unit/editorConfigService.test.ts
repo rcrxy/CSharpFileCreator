@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { describe, it } from "node:test";
 import {
     resolveEditorConfig,
+    resolveRawEditorConfig,
     resolveCSharpNewLineOptions,
     resolveCSharpSpacingOptions,
     resolveCSharpWrappingOptions,
@@ -363,6 +364,36 @@ describe("EditorConfig options", () => {
             assert.equal(csharp.insertFinalNewline, true);
             assert.equal(csharp.csharpNewLines.beforeOpenBrace, "none");
             assert.equal(razor.html.attributeStyle, "on_different_lines");
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    });
+
+    it("exports resolved EditorConfig properties as raw string values", async () => {
+        const directory = await mkdtemp(path.join(tmpdir(), "csharp-workbench-raw-editorconfig-"));
+
+        try {
+            await writeFile(
+                path.join(directory, ".editorconfig"),
+                [
+                    "root = true",
+                    "",
+                    "[*.cs]",
+                    "indent_size = 2",
+                    "insert_final_newline = true",
+                    "csharp_space_after_comma = false",
+                ].join("\n"),
+            );
+
+            const properties = await resolveRawEditorConfig({
+                scheme: "file",
+                path: "/Example.cs",
+                fsPath: path.join(directory, "Example.cs"),
+            } as never);
+
+            assert.equal(properties.indent_size, "2");
+            assert.equal(properties.insert_final_newline, "true");
+            assert.equal(properties.csharp_space_after_comma, "false");
         } finally {
             await rm(directory, { recursive: true, force: true });
         }
