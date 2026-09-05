@@ -46,6 +46,7 @@ export interface CSharpNewLineOptions {
 }
 
 export type CSharpBinaryOperatorSpacing = "before_and_after" | "none" | "ignore";
+export type CSharpParenthesisSpacingContext = "control_flow_statements" | "expressions" | "type_casts";
 
 export interface CSharpSpacingOptions {
     readonly afterControlFlowKeyword: boolean;
@@ -57,6 +58,13 @@ export interface CSharpSpacingOptions {
     readonly afterCast: boolean;
     readonly beforeInheritanceColon: boolean;
     readonly afterInheritanceColon: boolean;
+    readonly betweenMethodCallNameAndOpeningParenthesis: boolean;
+    readonly betweenMethodCallParameterListParentheses: boolean;
+    readonly betweenMethodCallEmptyParameterListParentheses: boolean;
+    readonly betweenMethodDeclarationNameAndOpeningParenthesis: boolean;
+    readonly betweenMethodDeclarationParameterListParentheses: boolean;
+    readonly betweenMethodDeclarationEmptyParameterListParentheses: boolean;
+    readonly betweenParentheses: ReadonlySet<CSharpParenthesisSpacingContext>;
 }
 
 export interface CSharpWrappingOptions {

@@ -103,6 +103,19 @@ query clauses. Nested initializers and nested query expressions are handled inde
 | `csharp_space_after_cast`                                | `true`, `false`                      | `false`            |
 | `csharp_space_before_colon_in_inheritance_clause`        | `true`, `false`                      | `true`             |
 | `csharp_space_after_colon_in_inheritance_clause`         | `true`, `false`                      | `true`             |
+| `csharp_space_between_method_call_name_and_opening_parenthesis` | `true`, `false` | `false` |
+| `csharp_space_between_method_call_parameter_list_parentheses` | `true`, `false` | `false` |
+| `csharp_space_between_method_call_empty_parameter_list_parentheses` | `true`, `false` | `false` |
+| `csharp_space_between_method_declaration_name_and_open_parenthesis` | `true`, `false` | `false` |
+| `csharp_space_between_method_declaration_parameter_list_parentheses` | `true`, `false` | `false` |
+| `csharp_space_between_method_declaration_empty_parameter_list_parentheses` | `true`, `false` | `false` |
+| `csharp_space_between_parentheses` | `false`, or a comma-separated list of `control_flow_statements`, `expressions`, and `type_casts` | `false` |
+
+Method-call and method-declaration settings independently control the space before `(` and the spaces immediately
+inside empty or non-empty parameter lists. `csharp_space_between_parentheses` applies the same inner-boundary behavior
+to the selected control-flow, parenthesized-expression, and cast contexts. Existing line breaks in multiline parameter
+lists are preserved. Object creation, lambda parameter lists, tuples, and ambiguous parenthesis forms are left
+unchanged by these rules.
 
 ### C# Wrapping And Preservation
 

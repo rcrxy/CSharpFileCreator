@@ -38,6 +38,13 @@ describe("EditorConfig options", () => {
             afterCast: false,
             beforeInheritanceColon: true,
             afterInheritanceColon: true,
+            betweenMethodCallNameAndOpeningParenthesis: false,
+            betweenMethodCallParameterListParentheses: false,
+            betweenMethodCallEmptyParameterListParentheses: false,
+            betweenMethodDeclarationNameAndOpeningParenthesis: false,
+            betweenMethodDeclarationParameterListParentheses: false,
+            betweenMethodDeclarationEmptyParameterListParentheses: false,
+            betweenParentheses: new Set(),
         });
         assert.deepEqual(resolveCSharpWrappingOptions({}), {
             preserveSingleLineStatements: true,
@@ -76,6 +83,13 @@ describe("EditorConfig options", () => {
                 csharp_space_after_cast: "true",
                 csharp_space_before_colon_in_inheritance_clause: false,
                 csharp_space_after_colon_in_inheritance_clause: "false",
+                csharp_space_between_method_call_name_and_opening_parenthesis: "true",
+                csharp_space_between_method_call_parameter_list_parentheses: true,
+                csharp_space_between_method_call_empty_parameter_list_parentheses: "true",
+                csharp_space_between_method_declaration_name_and_open_parenthesis: true,
+                csharp_space_between_method_declaration_parameter_list_parentheses: "true",
+                csharp_space_between_method_declaration_empty_parameter_list_parentheses: true,
+                csharp_space_between_parentheses: "control_flow_statements, expressions, type_casts, invalid",
             }),
             {
                 afterControlFlowKeyword: false,
@@ -87,6 +101,13 @@ describe("EditorConfig options", () => {
                 afterCast: true,
                 beforeInheritanceColon: false,
                 afterInheritanceColon: false,
+                betweenMethodCallNameAndOpeningParenthesis: true,
+                betweenMethodCallParameterListParentheses: true,
+                betweenMethodCallEmptyParameterListParentheses: true,
+                betweenMethodDeclarationNameAndOpeningParenthesis: true,
+                betweenMethodDeclarationParameterListParentheses: true,
+                betweenMethodDeclarationEmptyParameterListParentheses: true,
+                betweenParentheses: new Set(["control_flow_statements", "expressions", "type_casts"]),
             },
         );
         assert.deepEqual(

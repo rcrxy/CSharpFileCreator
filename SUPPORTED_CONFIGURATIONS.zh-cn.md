@@ -99,6 +99,17 @@ Razor 控制块同样应用这些换行规则。其左花括号使用 `csharp_ne
 | `csharp_space_after_cast`                                | `true`、`false`                      | `false`            |
 | `csharp_space_before_colon_in_inheritance_clause`        | `true`、`false`                      | `true`             |
 | `csharp_space_after_colon_in_inheritance_clause`         | `true`、`false`                      | `true`             |
+| `csharp_space_between_method_call_name_and_opening_parenthesis` | `true`、`false` | `false` |
+| `csharp_space_between_method_call_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_method_call_empty_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_method_declaration_name_and_open_parenthesis` | `true`、`false` | `false` |
+| `csharp_space_between_method_declaration_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_method_declaration_empty_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_parentheses` | `false`，或以逗号分隔的 `control_flow_statements`、`expressions`、`type_casts` | `false` |
+
+方法调用与方法声明配置会分别控制名称和 `(` 之间的空格，以及空参数列表或非空参数列表两侧的内部空格。
+`csharp_space_between_parentheses` 对选中的控制流、括号表达式和类型转换上下文应用相同的内部边界规则。多行参数
+列表已有的换行会被保留；对象创建、lambda 参数列表、元组和无法可靠分类的括号形式不会应用这些规则。
 
 ### C# 包装与单行保留
 

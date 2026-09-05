@@ -27,6 +27,13 @@ const defaultSpacing: CSharpSpacingOptions = {
     afterCast: false,
     beforeInheritanceColon: true,
     afterInheritanceColon: true,
+    betweenMethodCallNameAndOpeningParenthesis: false,
+    betweenMethodCallParameterListParentheses: false,
+    betweenMethodCallEmptyParameterListParentheses: false,
+    betweenMethodDeclarationNameAndOpeningParenthesis: false,
+    betweenMethodDeclarationParameterListParentheses: false,
+    betweenMethodDeclarationEmptyParameterListParentheses: false,
+    betweenParentheses: new Set(),
 };
 
 const defaultWrapping: CSharpWrappingOptions = {
@@ -235,6 +242,94 @@ describe("C# code-style formatting", () => {
         assert.match(compact, /class Demo:IThing ,IOther/);
         assert.match(compact, /for\(int i=0 ;i < 10 ;i\+\+\)/);
         assert.match(compact, /\(Item\) value ,a ,b/);
+    });
+
+    it("formats method call and declaration parentheses independently", () => {
+        const source = [
+            "class Demo {",
+            "public Demo ( ) { Initialize ( ); }",
+            "public int Sum ( int left, int right ) { return Add ( left, right ); }",
+            "int ICalculator.Sum ( int left, int right ) { return Add ( left, right ); }",
+            "void Run ( ) { }",
+            "}",
+        ].join("\n");
+
+        const compact = format(source);
+        assert.match(compact, /public Demo\(\)/);
+        assert.match(compact, /public int Sum\(int left, int right\)/);
+        assert.match(compact, /int ICalculator\.Sum\(int left, int right\)/);
+        assert.match(compact, /Initialize\(\)/);
+        assert.match(compact, /Add\(left, right\)/);
+
+        const callsSpaced = format(source, {
+            spacing: {
+                betweenMethodCallNameAndOpeningParenthesis: true,
+                betweenMethodCallParameterListParentheses: true,
+            },
+        });
+        assert.match(callsSpaced, /public Demo\(\)/);
+        assert.match(callsSpaced, /public int Sum\(int left, int right\)/);
+        assert.match(callsSpaced, /Initialize \(\)/);
+        assert.match(callsSpaced, /Add \( left, right \)/);
+
+        const declarationsSpaced = format(source, {
+            spacing: {
+                betweenMethodDeclarationNameAndOpeningParenthesis: true,
+                betweenMethodDeclarationParameterListParentheses: true,
+                betweenMethodDeclarationEmptyParameterListParentheses: true,
+            },
+        });
+        assert.match(declarationsSpaced, /public Demo \( \)/);
+        assert.match(declarationsSpaced, /public int Sum \( int left, int right \)/);
+        assert.match(declarationsSpaced, /int ICalculator\.Sum \( int left, int right \)/);
+        assert.match(declarationsSpaced, /Initialize\(\)/);
+        assert.match(declarationsSpaced, /Add\(left, right\)/);
+
+        const emptyCallsSpaced = format(source, {
+            spacing: { betweenMethodCallEmptyParameterListParentheses: true },
+        });
+        assert.match(emptyCallsSpaced, /public Demo\(\)/);
+        assert.match(emptyCallsSpaced, /Initialize\( \)/);
+    });
+
+    it("formats spaces inside control-flow, expression, and cast parentheses", () => {
+        const source = "if ( ready ) { var value = ( left + right ) * ( int ) scale; Use((left + right)); }";
+        const compact = format(source);
+        assert.match(compact, /if \(ready\)/);
+        assert.match(compact, /\(left \+ right\) \* \(int\)scale/);
+        assert.match(compact, /Use\(\(left \+ right\)\)/);
+
+        const spaced = format(source, {
+            spacing: { betweenParentheses: new Set(["control_flow_statements", "expressions", "type_casts"]) },
+        });
+        assert.match(spaced, /if \( ready \)/);
+        assert.match(spaced, /\( left \+ right \) \* \( int \)scale/);
+        assert.match(spaced, /Use\(\( left \+ right \)\)/);
+    });
+
+    it("leaves unrelated parenthesis forms and multiline parameter boundaries unchanged", () => {
+        const source = [
+            "var item = new global::Demo.Item ( 1 );",
+            "Func<int, int> map = (value) => (value + 1);",
+            "var tuple = (1, 2);",
+            "Use(",
+            "    value",
+            ");",
+        ].join("\n");
+        const result = format(source, {
+            spacing: {
+                betweenMethodCallNameAndOpeningParenthesis: true,
+                betweenMethodCallParameterListParentheses: true,
+                betweenMethodDeclarationNameAndOpeningParenthesis: true,
+                betweenMethodDeclarationParameterListParentheses: true,
+                betweenParentheses: new Set(["expressions"]),
+            },
+        });
+
+        assert.match(result, /new global::Demo\.Item \( 1 \)/);
+        assert.match(result, /\(value\) => \( value \+ 1 \)/);
+        assert.match(result, /var tuple = \(1, 2\);/);
+        assert.match(result, /Use \(\n    value\n\);/);
     });
 
     it("formats binary operators without changing unary operators or generic arguments", () => {
