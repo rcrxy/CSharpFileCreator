@@ -2,7 +2,7 @@
     "name": "csharp-workbench",
     "displayName": "C# Workbench",
     "description": "C# and Razor development tools for VS Code, including project-aware file creation and EditorConfig-based formatting.",
-    "version": "0.0.21",
+    "version": "0.1.0",
     "publisher": "zeco",
     "author": "zeco",
     "license": "MIT",
@@ -44,7 +44,8 @@
         "lint": "eslint src",
         "test": "vscode-test",
         "test:unit": "npm run compile && node --test out/test/unit/*.test.js",
-        "test:coverage": "npm run compile && node --test --experimental-test-coverage --test-coverage-include=out/features/formatting/services/csharpCodeStyleFormatter.js --test-coverage-include=out/features/formatting/services/razorTagFormatter.js --test-coverage-lines=90 --test-coverage-functions=90 out/test/unit/*.test.js"
+        "test:coverage": "npm run compile && node --test --experimental-test-coverage --test-coverage-include=out/features/formatting/services/csharpCodeStyleFormatter.js --test-coverage-include=out/features/formatting/services/razorTagFormatter.js --test-coverage-lines=90 --test-coverage-functions=90 out/test/unit/*.test.js",
+        "vsix": "npm run pretest && npx @vscode/vsce package"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",
@@ -54,10 +55,10 @@
         "@typescript-eslint/parser": "^8.25.0",
         "@vscode/test-cli": "^0.0.10",
         "@vscode/test-electron": "^2.4.1",
+        "@vscode/vsce": "^3.9.2",
         "eslint": "^9.21.0",
         "mocha": "^11.8.0",
-        "typescript": "^5.7.3",
-        "vsce": "^2.15.0"
+        "typescript": "^5.7.3"
     },
     "dependencies": {
         "editorconfig": "^3.0.2",
@@ -156,5 +157,9 @@
                 "command": "csharpworkbench.newRazorComponentFiles"
             }
         ]
+    },
+    "allowScripts": {
+        "@vscode/vsce-sign@2.1.0": true,
+        "keytar@7.9.0": true
     }
 }

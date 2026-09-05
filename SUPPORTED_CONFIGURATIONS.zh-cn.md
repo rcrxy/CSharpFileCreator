@@ -10,8 +10,10 @@ Workbench 已经实现其对应行为。
 ### 内置默认 Profile
 
 C# Workbench 通过内置的[默认 EditorConfig Profile](src/core/editorConfig/profiles/default.editorconfig)表达固定的
-默认格式化风格。该 Profile 使用与项目配置相同的 EditorConfig section 匹配机制解析，并为 C#、Razor 和
-CSHTML 提供对应的默认配置。
+默认格式化风格。该 Profile 使用与项目配置相同的 EditorConfig section 匹配机制解析，并显式覆盖 Workbench
+当前实际应用的全部属性。已支持的 C# 格式化属性使用 Microsoft/.NET SDK 配置值；HTML 属性使用对应的
+JetBrains ReSharper/Rider HTML 规则名称与兼容值；上游没有公开默认值的属性使用文档中列出的 Workbench
+兼容默认值。
 
 内置 Profile 只作为最终 fallback。项目中匹配的 `.editorconfig` 始终拥有更高优先级。依赖当前编辑器或文档
 状态的值会在 Profile 之前动态解析，因此 Profile 不会强制覆盖当前编辑上下文中的 Tab 宽度、换行符、最大行宽、
@@ -21,7 +23,7 @@ CSHTML 提供对应的默认配置。
 
 1. 项目中匹配的 `.editorconfig` 属性。
 2. 对于存在动态等价项的属性，使用当前 VS Code 编辑器或文档状态。
-3. 扩展内置的默认 EditorConfig Profile。
+3. 使用内置 EditorConfig Profile，其中的值来自 Microsoft、JetBrains 或文档化的兼容默认值。
 4. 仅当 Profile 无法提供有效值时使用代码中的防御性 fallback。
 
 ### 已应用的通用属性
@@ -58,6 +60,10 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 `CSharpCodeFormatter` 接口复用同一个 C# 格式化器。`registerFormattingFeature` 也可以接收自定义
 `CSharpCodeFormatter`，用于替换 Razor 内嵌 C# 的格式化实现。
 
+`csharp_indent_block_contents` 同样应用于 Razor 控制块内的 C# 语句和标记。支持的控制结构包括
+`@if`/`else if`/`else`、`@for`、`@foreach`、`@while`、`@switch`、`@using`、`@lock`、
+`@try`/`catch`/`finally` 和 `@do`/`while`。启用该属性时，块内容会额外增加一级缩进。
+
 ### C# 换行
 
 | 属性                                | 支持的值                                         | 默认值 |
@@ -66,10 +72,21 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 | `csharp_new_line_before_else`       | `true`、`false`                                  | `true` |
 | `csharp_new_line_before_catch`      | `true`、`false`                                  | `true` |
 | `csharp_new_line_before_finally`    | `true`、`false`                                  | `true` |
+| `csharp_new_line_before_members_in_object_initializers` | `true`、`false` | `true` |
+| `csharp_new_line_before_members_in_anonymous_types` | `true`、`false` | `true` |
+| `csharp_new_line_between_query_expression_clauses` | `true`、`false` | `true` |
 
 支持的大括号上下文包括 `accessors`、`anonymous_methods`、`anonymous_types`、`control_blocks`、`events`、
 `indexers`、`lambdas`、`local_functions`、`methods`、`object_collection_array_initializers`、`properties` 和
 `types`。
+
+Razor 控制块同样应用这些换行规则。其左花括号使用 `csharp_new_line_before_open_brace` 的
+`control_blocks` 上下文；`csharp_new_line_before_else`、`csharp_new_line_before_catch` 和
+`csharp_new_line_before_finally` 分别控制连续关键字是否与前一个右花括号同行。Razor `@do`/`while` 固定格式化为
+`} while (...);`。
+
+对象初始化器与匿名类型规则启用时，会将首个成员之后的成员分别放到新行；关闭时则用空格连接。查询表达式规则以
+相同方式控制顶层查询子句之间的换行。嵌套初始化器和嵌套查询表达式会分别处理。
 
 ### C# 空格
 
@@ -84,6 +101,17 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 | `csharp_space_after_cast`                                | `true`、`false`                      | `false`            |
 | `csharp_space_before_colon_in_inheritance_clause`        | `true`、`false`                      | `true`             |
 | `csharp_space_after_colon_in_inheritance_clause`         | `true`、`false`                      | `true`             |
+| `csharp_space_between_method_call_name_and_opening_parenthesis` | `true`、`false` | `false` |
+| `csharp_space_between_method_call_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_method_call_empty_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_method_declaration_name_and_open_parenthesis` | `true`、`false` | `false` |
+| `csharp_space_between_method_declaration_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_method_declaration_empty_parameter_list_parentheses` | `true`、`false` | `false` |
+| `csharp_space_between_parentheses` | `false`，或以逗号分隔的 `control_flow_statements`、`expressions`、`type_casts` | `false` |
+
+方法调用与方法声明配置会分别控制名称和 `(` 之间的空格，以及空参数列表或非空参数列表两侧的内部空格。
+`csharp_space_between_parentheses` 对选中的控制流、括号表达式和类型转换上下文应用相同的内部边界规则。多行参数
+列表已有的换行会被保留；对象创建、lambda 参数列表、元组和无法可靠分类的括号形式不会应用这些规则。
 
 ### C# 包装与单行保留
 
@@ -118,6 +146,29 @@ C# 文档同时支持**格式化文档**和**格式化选定内容**。Razor `@c
 | `html_preserve_spaces_inside_tags`                             | 以逗号分隔的元素名                                                                       | `pre,textarea`   | 完整保留所列元素的内容。                                            |
 | `html_extra_spaces`                                            | `remove_all`、`leave_tabs`、`leave_multiple`、`leave_all`                                | `remove_all`     | `remove_all` 删除标签中的冗余水平空白；`leave_*` 保留已有额外空白。 |
 
+#### 属性换行
+
+`html_attribute_wrap` 决定开始标签是否进入多行布局；进入多行后，`html_attribute_style` 和
+`html_attribute_indent` 分别决定属性排列方式和缩进方式。
+
+使用 `html_attribute_wrap = normal` 时，格式化器会先生成规范化的单行候选，不根据原始标签是否已经换行作出
+判断。视觉列宽包含标签当前的基础缩进，Tab 按 `tab_width` 展开到下一个制表位。单行候选宽度小于或等于
+`max_line_length` 时保持单行，只有超过限制时才进入配置的多行布局。
+
+多行布局语义如下：
+
+- `on_single_line`：所有属性共同放在一个有缩进的续行中。
+- `first_attribute_on_single_line`：首个属性与标签名同行，其余属性各占一行。
+- `on_different_lines`：每个属性各占一行。
+- `do_not_touch`：保留现有属性换行结构。
+
+`html_attribute_indent` 控制所有多行布局的续行缩进。已有多行标签的规范化单行候选未超长时会恢复为单行。
+单个超长属性值不会被拆分，格式化器也不会单独将 `>` 或 `/>` 移到新行。`max_line_length = off` 会关闭
+基于长度的属性换行。
+
+兼容值 `on_every_item` 和 `split_into_lines` 可以被解析，但目前不会增加换行行为；配置这些值时，已有的
+`html_attribute_style` 行为仍然生效。
+
 还支持以下 HTML 专属缩进别名：
 
 ```ini
@@ -136,11 +187,12 @@ HTML/Razor 标签格式化对每项适用配置使用以下优先级：
 1. 项目 `.editorconfig` 中无前缀的 `html_*` 属性。
 2. 兼容的 `resharper_html_*` 属性；存在等价标准属性时，再使用项目中的标准 EditorConfig 属性。
 3. 当前 VS Code 编辑器设置。
-4. 内置默认 EditorConfig Profile 中的对应属性。
+4. 内置 Profile 中与 ReSharper/Rider HTML 规则兼容的值。
+5. Workbench 的运行时防御性默认值。
 
 缩进的完整解析链为：`html_indent_*` → `resharper_html_indent_*` → 标准 `indent_*`/`tab_width` → 当前
-`TextEditor.options` → 内置 Profile。对于不存在标准 EditorConfig 或 VS Code 等价项的 HTML 规则，会从项目的
-语言专属配置直接回退到内置 Profile。
+`TextEditor.options` → 内置 Profile → 运行时默认值。对于不存在标准 EditorConfig 或 VS Code 等价项的 HTML
+规则，会从项目的语言专属配置回退到内置 Profile，最后再使用 Workbench 的运行时防御性默认值。
 
 ### 动态配置解析优先级
 
@@ -148,7 +200,7 @@ HTML/Razor 标签格式化对每项适用配置使用以下优先级：
 
 1. 匹配的项目 `.editorconfig` 属性。
 2. 当前 VS Code 编辑器选项。
-3. 内置默认 EditorConfig Profile。
+3. 使用内置 EditorConfig Profile。
 
 VS Code fallback 映射如下：
 
@@ -158,13 +210,33 @@ VS Code fallback 映射如下：
 | 缩进宽度和 Tab 宽度 | `TextEditor.options.tabSize`      |
 | 最大行宽            | `editor.wordWrapColumn`           |
 
-内置 Profile 当前包含：
+内置 Profile 覆盖当前全部已应用属性，其配置来源顺序为：
+
+1. C# 格式化属性优先采用 Microsoft/.NET SDK 默认配置。
+2. Razor/CSHTML 格式化采用 JetBrains ReSharper/Rider HTML 属性定义。
+3. 上游未公开默认值或属性本身属于兼容别名时，采用 Workbench 兼容默认值。
+
+其中通用和文档类型 section 包括：
 
 ```ini
+[*]
 indent_style = space
+max_line_length = 120
+end_of_line = lf
+trim_trailing_whitespace = false
+charset = utf-8
+
+[*.cs]
 indent_size = 4
 tab_width = 4
-max_line_length = 80
+insert_final_newline = false
+
+[*.{razor,cshtml}]
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
+html_attribute_style = on_single_line
+html_attribute_wrap = off
 ```
 
 ### 示例
@@ -184,6 +256,20 @@ indent_size = 2
 indent_style = tab
 indent_size = tab
 tab_width = 4
+```
+
+仅当规范化后的 Razor/HTML 开始标签超过 120 列时换行，首个属性与标签名同行，其余属性与首个属性对齐：
+
+```ini
+[*.razor]
+indent_style = space
+indent_size = 3
+tab_width = 3
+max_line_length = 120
+
+html_attribute_wrap = normal
+html_attribute_style = first_attribute_on_single_line
+html_attribute_indent = align_by_first_attribute
 ```
 
 将 C# 代码限制为 120 列，或者关闭格式化器主动换行：

@@ -24,6 +24,9 @@ describe("EditorConfig options", () => {
             beforeElse: true,
             beforeCatch: true,
             beforeFinally: true,
+            beforeMembersInObjectInitializers: true,
+            beforeMembersInAnonymousTypes: true,
+            betweenQueryExpressionClauses: true,
         });
         assert.deepEqual(resolveCSharpSpacingOptions({}), {
             afterControlFlowKeyword: true,
@@ -35,6 +38,13 @@ describe("EditorConfig options", () => {
             afterCast: false,
             beforeInheritanceColon: true,
             afterInheritanceColon: true,
+            betweenMethodCallNameAndOpeningParenthesis: false,
+            betweenMethodCallParameterListParentheses: false,
+            betweenMethodCallEmptyParameterListParentheses: false,
+            betweenMethodDeclarationNameAndOpeningParenthesis: false,
+            betweenMethodDeclarationParameterListParentheses: false,
+            betweenMethodDeclarationEmptyParameterListParentheses: false,
+            betweenParentheses: new Set(),
         });
         assert.deepEqual(resolveCSharpWrappingOptions({}), {
             preserveSingleLineStatements: true,
@@ -48,6 +58,9 @@ describe("EditorConfig options", () => {
             csharp_new_line_before_else: "false",
             csharp_new_line_before_catch: false,
             csharp_new_line_before_finally: "false",
+            csharp_new_line_before_members_in_object_initializers: "false",
+            csharp_new_line_before_members_in_anonymous_types: false,
+            csharp_new_line_between_query_expression_clauses: "false",
         });
 
         assert.ok(newLines.beforeOpenBrace instanceof Set);
@@ -55,6 +68,9 @@ describe("EditorConfig options", () => {
         assert.equal(newLines.beforeElse, false);
         assert.equal(newLines.beforeCatch, false);
         assert.equal(newLines.beforeFinally, false);
+        assert.equal(newLines.beforeMembersInObjectInitializers, false);
+        assert.equal(newLines.beforeMembersInAnonymousTypes, false);
+        assert.equal(newLines.betweenQueryExpressionClauses, false);
 
         assert.deepEqual(
             resolveCSharpSpacingOptions({
@@ -67,6 +83,13 @@ describe("EditorConfig options", () => {
                 csharp_space_after_cast: "true",
                 csharp_space_before_colon_in_inheritance_clause: false,
                 csharp_space_after_colon_in_inheritance_clause: "false",
+                csharp_space_between_method_call_name_and_opening_parenthesis: "true",
+                csharp_space_between_method_call_parameter_list_parentheses: true,
+                csharp_space_between_method_call_empty_parameter_list_parentheses: "true",
+                csharp_space_between_method_declaration_name_and_open_parenthesis: true,
+                csharp_space_between_method_declaration_parameter_list_parentheses: "true",
+                csharp_space_between_method_declaration_empty_parameter_list_parentheses: true,
+                csharp_space_between_parentheses: "control_flow_statements, expressions, type_casts, invalid",
             }),
             {
                 afterControlFlowKeyword: false,
@@ -78,6 +101,13 @@ describe("EditorConfig options", () => {
                 afterCast: true,
                 beforeInheritanceColon: false,
                 afterInheritanceColon: false,
+                betweenMethodCallNameAndOpeningParenthesis: true,
+                betweenMethodCallParameterListParentheses: true,
+                betweenMethodCallEmptyParameterListParentheses: true,
+                betweenMethodDeclarationNameAndOpeningParenthesis: true,
+                betweenMethodDeclarationParameterListParentheses: true,
+                betweenMethodDeclarationEmptyParameterListParentheses: true,
+                betweenParentheses: new Set(["control_flow_statements", "expressions", "type_casts"]),
             },
         );
         assert.deepEqual(
@@ -164,7 +194,7 @@ describe("EditorConfig options", () => {
         assert.equal(defaults.extraSpaces, "remove_all");
     });
 
-    it("parses fixed defaults from the built-in EditorConfig Profile by document type", async () => {
+    it("covers every supported option with Microsoft, JetBrains, or compatibility defaults", async () => {
         const profileFile = path.join(process.cwd(), ...defaultProfilePath);
         initializeDefaultEditorConfigProfile(await readFile(profileFile));
 
@@ -174,11 +204,84 @@ describe("EditorConfig options", () => {
             fsPath: "Example.razor",
         } as never);
 
-        assert.equal(csharpProfile.csharp_new_line_before_open_brace, "all");
-        assert.equal(csharpProfile.csharp_space_around_binary_operators, "before_and_after");
-        assert.equal(razorProfile.html_attribute_style, "on_single_line");
-        assert.equal(razorProfile.html_space_before_self_closing, true);
-        assert.equal(razorProfile.csharp_new_line_before_open_brace, "all");
+        const expectedCSharpProfile = {
+            indent_style: "space",
+            indent_size: 4,
+            tab_width: 4,
+            max_line_length: 120,
+            end_of_line: "lf",
+            insert_final_newline: false,
+            trim_trailing_whitespace: false,
+            charset: "utf-8",
+            csharp_indent_block_contents: true,
+            csharp_indent_braces: false,
+            csharp_indent_case_contents: true,
+            csharp_indent_switch_labels: true,
+            csharp_indent_case_contents_when_block: true,
+            csharp_indent_labels: "one_less_than_current",
+            csharp_new_line_before_open_brace: "all",
+            csharp_new_line_before_else: true,
+            csharp_new_line_before_catch: true,
+            csharp_new_line_before_finally: true,
+            csharp_new_line_before_members_in_object_initializers: true,
+            csharp_new_line_before_members_in_anonymous_types: true,
+            csharp_new_line_between_query_expression_clauses: true,
+            csharp_space_after_keywords_in_control_flow_statements: true,
+            csharp_space_around_binary_operators: "before_and_after",
+            csharp_space_after_comma: true,
+            csharp_space_before_comma: false,
+            csharp_space_after_semicolon_in_for_statement: true,
+            csharp_space_before_semicolon_in_for_statement: false,
+            csharp_space_after_cast: false,
+            csharp_space_before_colon_in_inheritance_clause: true,
+            csharp_space_after_colon_in_inheritance_clause: true,
+            csharp_space_between_method_call_name_and_opening_parenthesis: false,
+            csharp_space_between_method_call_parameter_list_parentheses: false,
+            csharp_space_between_method_call_empty_parameter_list_parentheses: false,
+            csharp_space_between_method_declaration_name_and_open_parenthesis: false,
+            csharp_space_between_method_declaration_parameter_list_parentheses: false,
+            csharp_space_between_method_declaration_empty_parameter_list_parentheses: false,
+            csharp_space_between_parentheses: false,
+            csharp_preserve_single_line_statements: true,
+            csharp_preserve_single_line_blocks: true,
+        } as const;
+        for (const [name, value] of Object.entries(expectedCSharpProfile)) {
+            assert.equal(csharpProfile[name], value, name);
+        }
+
+        const expectedRazorProfile = {
+            indent_style: "space",
+            indent_size: 4,
+            tab_width: 4,
+            max_line_length: 120,
+            end_of_line: "lf",
+            insert_final_newline: true,
+            trim_trailing_whitespace: false,
+            charset: "utf-8",
+            html_indent_style: "space",
+            html_indent_size: 4,
+            html_tab_width: 4,
+            html_spaces_around_eq_in_attribute: false,
+            html_space_after_last_attribute: false,
+            html_space_before_self_closing: true,
+            html_attribute_style: "on_single_line",
+            html_attribute_wrap: "off",
+            ij_html_attribute_wrap: "off",
+            html_attribute_indent: "single_indent",
+            html_max_blank_lines_between_tags: 1,
+            html_linebreak_before_all_elements: false,
+            html_linebreak_before_multiline_elements: true,
+            html_linebreaks_inside_tags_for_multiline_elements: true,
+            html_linebreaks_inside_tags_for_elements_with_child_elements: true,
+            html_no_indent_inside_elements: "pre,textarea",
+            html_preserve_spaces_inside_tags: "pre,textarea",
+            html_extra_spaces: "remove_all",
+        } as const;
+        for (const [name, value] of Object.entries(expectedRazorProfile)) {
+            assert.equal(razorProfile[name], value, name);
+        }
+
+        assert.equal(razorProfile.csharp_new_line_before_open_brace, undefined);
     });
 
     it("keeps dynamic editor fallbacks ahead of Profile defaults", () => {

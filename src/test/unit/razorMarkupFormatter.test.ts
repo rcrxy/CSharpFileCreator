@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { HtmlFormattingOptions } from "../../core/editorConfig";
+import type { CSharpIndentationOptions, CSharpNewLineOptions, HtmlFormattingOptions } from "../../core/editorConfig";
 import { formatRazorMarkup } from "../../features/formatting/services/razorMarkupFormatter";
 
 const html: HtmlFormattingOptions = {
@@ -22,14 +22,36 @@ const html: HtmlFormattingOptions = {
     extraSpaces: "remove_all",
 };
 
+const csharpIndentation: CSharpIndentationOptions = {
+    indentBlockContents: true,
+    indentBraces: false,
+    indentCaseContents: true,
+    indentSwitchLabels: false,
+    indentCaseContentsWhenBlock: false,
+    indentLabels: "one_less_than_current",
+};
+
+const csharpNewLines: CSharpNewLineOptions = {
+    beforeOpenBrace: "none",
+    beforeElse: false,
+    beforeCatch: false,
+    beforeFinally: false,
+    beforeMembersInObjectInitializers: false,
+    beforeMembersInAnonymousTypes: false,
+    betweenQueryExpressionClauses: false,
+};
+
 function format(
     source: string,
     overrides: Partial<HtmlFormattingOptions> = {},
     formatCSharp?: (source: string) => string,
+    csharpIndentationOverrides: Partial<CSharpIndentationOptions> = {},
 ): string {
     const resolvedHtml = { ...html, ...overrides };
     return formatRazorMarkup(source, {
         indentation: resolvedHtml.indentation,
+        csharpIndentation: { ...csharpIndentation, ...csharpIndentationOverrides },
+        csharpNewLines,
         html: resolvedHtml,
         lineEnding: "\n",
         insertFinalNewline: false,
@@ -99,6 +121,44 @@ describe("Razor markup formatting pipeline", () => {
         assert.match(result, /^                               Frozen="true" \/>$/m);
     });
 
+    it("preserves Razor expression strings while wrapping attributes in nested component templates", () => {
+        const source = [
+            "<Columns>",
+            '<RadzenDataGridColumn Property="@nameof(StoreEntity.IsEnabled)" Title="启用状态" Frozen="true" Width="100px">',
+            '<Template Context="store">',
+            '<RadzenIcon Icon="@(store.IsEnabled ? "check_circle" : "cancel")" Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />',
+            "</Template>",
+            "</RadzenDataGridColumn>",
+            "</Columns>",
+        ].join("\n");
+        const options: Partial<HtmlFormattingOptions> = {
+            indentation: { style: "space", size: 3, tabWidth: 3 },
+            attributeStyle: "on_different_lines",
+            attributeIndent: "double_indent",
+            attributeWrap: "normal",
+            maxLineLength: 80,
+        };
+        const expected = [
+            "<Columns>",
+            "   <RadzenDataGridColumn",
+            '         Property="@nameof(StoreEntity.IsEnabled)"',
+            '         Title="启用状态"',
+            '         Frozen="true"',
+            '         Width="100px">',
+            '      <Template Context="store">',
+            "         <RadzenIcon",
+            '               Icon="@(store.IsEnabled ? "check_circle" : "cancel")"',
+            '               Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />',
+            "      </Template>",
+            "   </RadzenDataGridColumn>",
+            "</Columns>",
+        ].join("\n");
+
+        const result = format(source, options);
+        assert.equal(result, expected);
+        assert.equal(format(result, options), expected);
+    });
+
     it("does not indent or normalize configured protected element contents", () => {
         const source =
             "<div>\n<pre>  first   value\n    second </pre>\n<textarea> third   value </textarea>\n<span>After</span>\n</div>";
@@ -127,6 +187,138 @@ describe("Razor markup formatting pipeline", () => {
         const result = format(source, {}, value => value);
         assert.match(result, /List<string> first/);
         assert.match(result, /List<int> second/);
+    });
+
+    it("indents inline Razor statement bodies and their first C# lines", () => {
+        const source = [
+            "<div>",
+            "@if (enabled)",
+            "{",
+            "var value = 1;",
+            '<RadzenIcon Icon="check_circle" />',
+            "}",
+            "</div>",
+        ].join("\n");
+
+        assert.equal(
+            format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }),
+            [
+                "<div>",
+                "   @if (enabled) {",
+                "      var value = 1;",
+                '      <RadzenIcon Icon="check_circle" />',
+                "   }",
+                "</div>",
+            ].join("\n"),
+        );
+    });
+
+    it("preserves single-line Razor if blocks without losing the surrounding markup depth", () => {
+        const source = [
+            "<div>",
+            '@if (showIcon) { <RadzenIcon Icon="check_circle" /> }',
+            "@if (increment) { count++; }",
+            "<span>After</span>",
+            "</div>",
+        ].join("\n");
+
+        assert.equal(
+            format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }),
+            [
+                "<div>",
+                '   @if (showIcon) { <RadzenIcon Icon="check_circle" /> }',
+                "   @if (increment) { count++; }",
+                "   <span>After</span>",
+                "</div>",
+            ].join("\n"),
+        );
+    });
+
+    it("respects csharp_indent_block_contents for Razor control blocks", () => {
+        const source = ["<div>", "@if (enabled)", "{", "var value = 1;", "<span>Value</span>", "}", "</div>"].join("\n");
+
+        assert.equal(
+            format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }, undefined, {
+                indentBlockContents: false,
+            }),
+            ["<div>", "   @if (enabled) {", "   var value = 1;", "   <span>Value</span>", "   }", "</div>"].join("\n"),
+        );
+    });
+
+    it("formats chained and other Razor control blocks with the configured brace rules", () => {
+        const source = [
+            "<div>",
+            "@if (first)",
+            "{",
+            "<span>First</span>",
+            "}",
+            "else if (second)",
+            "{",
+            "var value = 2;",
+            "}",
+            "else",
+            "{",
+            "<span>Other</span>",
+            "}",
+            "@try",
+            "{",
+            "Run();",
+            "}",
+            "catch (Exception)",
+            "{",
+            "Recover();",
+            "}",
+            "finally",
+            "{",
+            "Cleanup();",
+            "}",
+            "@foreach (var item in items)",
+            "{",
+            "<span>@item</span>",
+            "}",
+            "@switch (state)",
+            "{",
+            "RenderState();",
+            "}",
+            "@do",
+            "{",
+            "Advance();",
+            "}",
+            "while (pending);",
+            "</div>",
+        ].join("\n");
+
+        const expected = [
+            "<div>",
+            "   @if (first) {",
+            "      <span>First</span>",
+            "   } else if (second) {",
+            "      var value = 2;",
+            "   } else {",
+            "      <span>Other</span>",
+            "   }",
+            "   @try {",
+            "      Run();",
+            "   } catch (Exception) {",
+            "      Recover();",
+            "   } finally {",
+            "      Cleanup();",
+            "   }",
+            "   @foreach (var item in items) {",
+            "      <span>@item</span>",
+            "   }",
+            "   @switch (state) {",
+            "      RenderState();",
+            "   }",
+            "   @do {",
+            "      Advance();",
+            "   } while (pending);",
+            "</div>",
+        ].join("\n");
+        const result = format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } });
+
+        assert.equal(result, expected);
+        assert.equal(format(result, { indentation: { style: "space", size: 3, tabWidth: 3 } }), expected);
     });
 
     it("normalizes output to the configured line ending", () => {

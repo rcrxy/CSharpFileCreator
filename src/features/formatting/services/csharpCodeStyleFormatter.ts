@@ -5,6 +5,7 @@ import type {
     CSharpWrappingOptions,
     IndentationOptions,
 } from "../../../core/editorConfig";
+import { csharpKeywords } from "../../../shared/csharp/csharpKeywords";
 
 export interface CSharpCodeStyleFormattingOptions {
     readonly indentation: IndentationOptions;
@@ -42,6 +43,12 @@ export function formatCSharpCodeStyle(source: string, options: CSharpCodeStyleFo
     formatted = formatKeywordNewLines(formatted, "catch", options.newLines.beforeCatch, lineEnding);
     formatted = formatKeywordNewLines(formatted, "finally", options.newLines.beforeFinally, lineEnding);
     formatted = formatSpacing(formatted, options.spacing);
+    formatted = formatInitializerMemberNewLines(formatted, options.newLines, lineEnding);
+    formatted = formatQueryExpressionClauseNewLines(
+        formatted,
+        options.newLines.betweenQueryExpressionClauses,
+        lineEnding,
+    );
 
     return formatted;
 }
@@ -160,7 +167,309 @@ function formatSpacing(source: string, options: CSharpSpacingOptions): string {
         formatted = formatBinaryOperatorSpacing(formatted, options.aroundBinaryOperators === "before_and_after");
     }
 
+    formatted = formatParenthesisSpacing(formatted, options);
+
     return formatted;
+}
+
+type SpacingParenthesisKind = "control_flow" | "expression" | "method_call" | "method_declaration" | "type_cast";
+
+interface ParenthesisPair {
+    readonly openingIndex: number;
+    readonly closingIndex: number;
+}
+
+interface CallableBeforeParenthesis {
+    readonly name: string;
+    readonly nameStart: number;
+    readonly gapStart: number;
+}
+
+function formatParenthesisSpacing(source: string, options: CSharpSpacingOptions): string {
+    const mask = createCodeMask(source);
+    const replacements: Array<{ start: number; end: number; value: string }> = [];
+
+    for (const pair of findParenthesisPairs(source, mask)) {
+        const kind = classifySpacingParenthesis(source, mask, pair);
+        if (!kind) {
+            continue;
+        }
+
+        const callable =
+            kind === "method_call" || kind === "method_declaration"
+                ? findCallableBeforeParenthesis(source, pair.openingIndex)
+                : undefined;
+        if (callable) {
+            const useNameSpace =
+                kind === "method_call"
+                    ? options.betweenMethodCallNameAndOpeningParenthesis
+                    : options.betweenMethodDeclarationNameAndOpeningParenthesis;
+            replacements.push({
+                start: callable.gapStart,
+                end: pair.openingIndex,
+                value: useNameSpace ? " " : "",
+            });
+        }
+
+        const empty = source.slice(pair.openingIndex + 1, pair.closingIndex).trim().length === 0;
+        let useInnerSpaces: boolean;
+        if (kind === "method_call") {
+            useInnerSpaces = empty
+                ? options.betweenMethodCallEmptyParameterListParentheses
+                : options.betweenMethodCallParameterListParentheses;
+        } else if (kind === "method_declaration") {
+            useInnerSpaces = empty
+                ? options.betweenMethodDeclarationEmptyParameterListParentheses
+                : options.betweenMethodDeclarationParameterListParentheses;
+        } else {
+            const context =
+                kind === "control_flow" ? "control_flow_statements" : kind === "expression" ? "expressions" : "type_casts";
+            useInnerSpaces = options.betweenParentheses.has(context);
+        }
+
+        addInnerParenthesisSpacingReplacements(source, pair, useInnerSpaces, replacements);
+    }
+
+    return applyReplacements(source, replacements);
+}
+
+function findParenthesisPairs(source: string, mask: readonly boolean[]): ParenthesisPair[] {
+    const stack: number[] = [];
+    const pairs: ParenthesisPair[] = [];
+
+    for (let index = 0; index < source.length; index++) {
+        if (!mask[index]) {
+            continue;
+        }
+        if (source[index] === "(") {
+            stack.push(index);
+        } else if (source[index] === ")" && stack.length > 0) {
+            pairs.push({ openingIndex: stack.pop()!, closingIndex: index });
+        }
+    }
+
+    return pairs.sort((left, right) => left.openingIndex - right.openingIndex);
+}
+
+function classifySpacingParenthesis(
+    source: string,
+    mask: readonly boolean[],
+    pair: ParenthesisPair,
+): SpacingParenthesisKind | undefined {
+    const previousWord = previousCodeWord(source, pair.openingIndex);
+    if (previousWord && controlFlowKeywords.includes(previousWord)) {
+        return "control_flow";
+    }
+    if (isCastParenthesis(source, pair)) {
+        return "type_cast";
+    }
+
+    const callable = findCallableBeforeParenthesis(source, pair.openingIndex);
+    if (
+        callable &&
+        !isNonInvocationKeyword(callable.name) &&
+        !isObjectCreation(source, callable.nameStart) &&
+        !isConstructorInitializer(source, callable.nameStart, callable.name) &&
+        !isDelegateDeclaration(source, callable.nameStart)
+    ) {
+        return isMethodDeclaration(source, callable, pair.closingIndex) ? "method_declaration" : "method_call";
+    }
+
+    return isParenthesizedExpression(source, mask, pair) ? "expression" : undefined;
+}
+
+function findCallableBeforeParenthesis(source: string, openingIndex: number): CallableBeforeParenthesis | undefined {
+    const gapStart = findHorizontalWhitespaceStart(source, openingIndex);
+    const match = /([A-Za-z_]\w*)(?:\s*<[^()\r\n{};]+>)?$/.exec(source.slice(0, gapStart));
+    if (!match) {
+        return undefined;
+    }
+
+    return {
+        name: match[1],
+        nameStart: match.index,
+        gapStart,
+    };
+}
+
+function isMethodDeclaration(source: string, callable: CallableBeforeParenthesis, closingIndex: number): boolean {
+    const previousCharacter = previousNonWhitespace(source, callable.nameStart - 1);
+    if (previousCharacter === "?") {
+        return false;
+    }
+
+    const boundary = Math.max(
+        source.lastIndexOf(";", callable.nameStart - 1),
+        source.lastIndexOf("{", callable.nameStart - 1),
+        source.lastIndexOf("}", callable.nameStart - 1),
+    );
+    let prefix = source.slice(boundary + 1, callable.nameStart).trim();
+    prefix = prefix.replace(/^(?:\[[^\]\r\n]*\]\s*)+/, "");
+    prefix = prefix.replace(
+        /^(?:(?:public|private|protected|internal|static|abstract|virtual|override|sealed|extern|async|unsafe|new|partial|readonly|required|file|ref|scoped)\s+)*/,
+        "",
+    );
+
+    const suffix = source.slice(closingIndex + 1).trimStart();
+    if (!/^(?:\{|=>|:|;|where\b)/.test(suffix)) {
+        return false;
+    }
+    if (previousCharacter === "~") {
+        return suffix.startsWith("{");
+    }
+    if (previousCharacter === ".") {
+        const explicitInterface = /^(.+?)\s+(?:[A-Za-z_]\w*(?:\s*<[^(){};=]+>)?\.)+$/.exec(prefix);
+        if (!explicitInterface) {
+            return false;
+        }
+        prefix = explicitInterface[1];
+    }
+    if (!prefix) {
+        return /^(?:\{|=>|:)/.test(suffix);
+    }
+
+    return isLikelyReturnType(prefix);
+}
+
+function isLikelyReturnType(value: string): boolean {
+    if (/^(?:return|throw|yield|await|case|class|delegate|interface|operator|record|struct)\b/.test(value)) {
+        return false;
+    }
+
+    return /^(?:(?:ref|readonly|scoped)\s+)*(?:global::)?[A-Za-z_]\w*(?:(?:::|\.)[A-Za-z_]\w*)*(?:\s*<[^(){};=]+>)?(?:\s*[?*]|\s*\[\s*,*\s*\])*$/.test(
+        value,
+    );
+}
+
+function isCastParenthesis(source: string, pair: ParenthesisPair): boolean {
+    const value = source.slice(pair.openingIndex + 1, pair.closingIndex).trim();
+    if (!value || !isLikelyCastType(value)) {
+        return false;
+    }
+
+    const suffix = source.slice(pair.closingIndex + 1).trimStart();
+    return !suffix.startsWith("=>") && /^(?:[A-Za-z_0-9]|new\b|this\b|base\b|[(["'!~])/.test(suffix);
+}
+
+function isParenthesizedExpression(source: string, mask: readonly boolean[], pair: ParenthesisPair): boolean {
+    const value = source.slice(pair.openingIndex + 1, pair.closingIndex).trim();
+    if (!value || findTopLevelCommas(source, mask, pair.openingIndex, pair.closingIndex).length > 0) {
+        return false;
+    }
+
+    const suffix = source.slice(pair.closingIndex + 1).trimStart();
+    const previousWord = previousCodeWord(source, pair.openingIndex);
+    return !suffix.startsWith("=>") && (!previousWord || isExpressionPrefixKeyword(previousWord));
+}
+
+function isNonInvocationKeyword(value: string): boolean {
+    return (
+        csharpKeywords.has(value) ||
+        [
+            "ascending",
+            "await",
+            "by",
+            "descending",
+            "equals",
+            "from",
+            "group",
+            "into",
+            "join",
+            "let",
+            "nameof",
+            "on",
+            "orderby",
+            "select",
+            "when",
+            "where",
+            "yield",
+        ].includes(value)
+    );
+}
+
+function isExpressionPrefixKeyword(value: string): boolean {
+    return [
+        "await",
+        "by",
+        "case",
+        "equals",
+        "group",
+        "in",
+        "let",
+        "on",
+        "return",
+        "select",
+        "throw",
+        "when",
+        "where",
+        "yield",
+    ].includes(value);
+}
+
+function isObjectCreation(source: string, nameStart: number): boolean {
+    const boundary = Math.max(
+        source.lastIndexOf(";", nameStart - 1),
+        source.lastIndexOf("{", nameStart - 1),
+        source.lastIndexOf("}", nameStart - 1),
+        source.lastIndexOf("=", nameStart - 1),
+        source.lastIndexOf(",", nameStart - 1),
+    );
+    return /\bnew\s+(?:global::)?(?:[A-Za-z_]\w*(?:::|\.)?)*$/.test(source.slice(boundary + 1, nameStart));
+}
+
+function isConstructorInitializer(source: string, nameStart: number, name: string): boolean {
+    return (name === "base" || name === "this") && /:\s*$/.test(source.slice(0, nameStart));
+}
+
+function isDelegateDeclaration(source: string, nameStart: number): boolean {
+    const boundary = Math.max(
+        source.lastIndexOf(";", nameStart - 1),
+        source.lastIndexOf("{", nameStart - 1),
+        source.lastIndexOf("}", nameStart - 1),
+    );
+    return /\bdelegate\b/.test(source.slice(boundary + 1, nameStart));
+}
+
+function previousCodeWord(source: string, index: number): string | undefined {
+    const prefix = source.slice(0, findHorizontalWhitespaceStart(source, index));
+    return /([A-Za-z_]\w*)$/.exec(prefix)?.[1];
+}
+
+function addInnerParenthesisSpacingReplacements(
+    source: string,
+    pair: ParenthesisPair,
+    useSpaces: boolean,
+    replacements: Array<{ start: number; end: number; value: string }>,
+): void {
+    const inner = source.slice(pair.openingIndex + 1, pair.closingIndex);
+    if (inner.trim().length === 0) {
+        if (!hasLineBreak(inner)) {
+            replacements.push({
+                start: pair.openingIndex + 1,
+                end: pair.closingIndex,
+                value: useSpaces ? " " : "",
+            });
+        }
+        return;
+    }
+
+    const afterOpening = findHorizontalWhitespaceEnd(source, pair.openingIndex + 1);
+    if (!/\r|\n/.test(source[afterOpening] ?? "")) {
+        replacements.push({
+            start: pair.openingIndex + 1,
+            end: afterOpening,
+            value: useSpaces ? " " : "",
+        });
+    }
+
+    const beforeClosing = findHorizontalWhitespaceStart(source, pair.closingIndex);
+    if (!/\r|\n/.test(source[beforeClosing - 1] ?? "")) {
+        replacements.push({
+            start: beforeClosing,
+            end: pair.closingIndex,
+            value: useSpaces ? " " : "",
+        });
+    }
 }
 
 function formatKeywordNewLines(source: string, keyword: string, useNewLine: boolean, lineEnding: string): string {
@@ -171,6 +480,286 @@ function formatKeywordNewLines(source: string, keyword: string, useNewLine: bool
 
     const pattern = new RegExp(`}[ \\t]*(?:\\r\\n|\\n|\\r)[ \\t]*${keyword}\\b`, "g");
     return replaceCodeMatches(source, pattern, () => `} ${keyword}`);
+}
+
+function formatInitializerMemberNewLines(
+    source: string,
+    options: CSharpNewLineOptions,
+    lineEnding: string,
+): string {
+    const mask = createCodeMask(source);
+    const braceStack: number[] = [];
+    const replacements: Array<{ start: number; end: number; value: string }> = [];
+
+    for (let index = 0; index < source.length; index++) {
+        if (!mask[index]) {
+            continue;
+        }
+        if (source[index] === "{") {
+            braceStack.push(index);
+            continue;
+        }
+        if (source[index] !== "}" || braceStack.length === 0) {
+            continue;
+        }
+
+        const openingIndex = braceStack.pop()!;
+        const initializerKind = classifyInitializer(source, mask, openingIndex, index);
+        if (!initializerKind) {
+            continue;
+        }
+
+        const useNewLine =
+            initializerKind === "anonymous"
+                ? options.beforeMembersInAnonymousTypes
+                : options.beforeMembersInObjectInitializers;
+        for (const commaIndex of findTopLevelCommas(source, mask, openingIndex, index)) {
+            const whitespaceEnd = findWhitespaceEnd(source, commaIndex + 1);
+            if (source.startsWith("//", whitespaceEnd) || source.startsWith("/*", whitespaceEnd)) {
+                continue;
+            }
+
+            const whitespace = source.slice(commaIndex + 1, whitespaceEnd);
+            const hasNewLine = /\r\n|\n|\r/.test(whitespace);
+            if (useNewLine && !hasNewLine) {
+                replacements.push({ start: commaIndex + 1, end: whitespaceEnd, value: lineEnding });
+            } else if (!useNewLine && hasNewLine) {
+                replacements.push({ start: commaIndex + 1, end: whitespaceEnd, value: " " });
+            }
+        }
+    }
+
+    return applyReplacements(source, replacements);
+}
+
+function classifyInitializer(
+    source: string,
+    mask: readonly boolean[],
+    openingIndex: number,
+    closingIndex: number,
+): "anonymous" | "object" | undefined {
+    const previousCode = source.slice(Math.max(0, openingIndex - 300), openingIndex).trimEnd();
+    if (/\bnew\s*$/s.test(previousCode)) {
+        return "anonymous";
+    }
+    if (!/\bnew\s*(?:[A-Za-z_][\w.<>,?\[\]]*\s*)?(?:\([^)]*\))?\s*$/s.test(previousCode)) {
+        return undefined;
+    }
+
+    return hasTopLevelAssignment(source, mask, openingIndex, closingIndex) ? "object" : undefined;
+}
+
+function hasTopLevelAssignment(
+    source: string,
+    mask: readonly boolean[],
+    openingIndex: number,
+    closingIndex: number,
+): boolean {
+    let braceDepth = 0;
+    let parenthesisDepth = 0;
+    let bracketDepth = 0;
+
+    for (let index = openingIndex + 1; index < closingIndex; index++) {
+        if (!mask[index]) {
+            continue;
+        }
+
+        const character = source[index];
+        if (character === "{") {
+            braceDepth++;
+        } else if (character === "}") {
+            braceDepth--;
+        } else if (character === "(") {
+            parenthesisDepth++;
+        } else if (character === ")") {
+            parenthesisDepth--;
+        } else if (character === "[") {
+            bracketDepth++;
+        } else if (character === "]") {
+            bracketDepth--;
+        } else if (
+            character === "=" &&
+            braceDepth === 0 &&
+            parenthesisDepth === 0 &&
+            bracketDepth === 0 &&
+            source[index - 1] !== "=" &&
+            source[index + 1] !== "=" &&
+            source[index + 1] !== ">"
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function findTopLevelCommas(
+    source: string,
+    mask: readonly boolean[],
+    openingIndex: number,
+    closingIndex: number,
+): number[] {
+    const commaIndexes: number[] = [];
+    let braceDepth = 0;
+    let parenthesisDepth = 0;
+    let bracketDepth = 0;
+
+    for (let index = openingIndex + 1; index < closingIndex; index++) {
+        if (!mask[index]) {
+            continue;
+        }
+
+        const character = source[index];
+        if (character === "{") {
+            braceDepth++;
+        } else if (character === "}") {
+            braceDepth--;
+        } else if (character === "(") {
+            parenthesisDepth++;
+        } else if (character === ")") {
+            parenthesisDepth--;
+        } else if (character === "[") {
+            bracketDepth++;
+        } else if (character === "]") {
+            bracketDepth--;
+        } else if (character === "," && braceDepth === 0 && parenthesisDepth === 0 && bracketDepth === 0) {
+            commaIndexes.push(index);
+        }
+    }
+
+    return commaIndexes;
+}
+
+function formatQueryExpressionClauseNewLines(source: string, useNewLine: boolean, lineEnding: string): string {
+    const mask = createCodeMask(source);
+    const depth = createCodeDepth(source, mask);
+    const clausePattern = /\b(?:from|let|where|join|orderby|select|group|into)\b/g;
+    const clauseMatches = [...source.matchAll(clausePattern)].filter(match => mask[match.index]);
+    const replacements: Array<{ start: number; end: number; value: string }> = [];
+    const queryRanges: Array<{ start: number; end: number; depth: CodeDepth }> = [];
+
+    for (const match of clauseMatches) {
+        const startIndex = match.index;
+        if (match[0] !== "from" || !looksLikeFromClause(source, startIndex)) {
+            continue;
+        }
+
+        const queryDepth = depth[startIndex];
+        if (
+            queryRanges.some(
+                range =>
+                    range.start < startIndex &&
+                    startIndex < range.end &&
+                    sameCodeDepth(range.depth, queryDepth),
+            )
+        ) {
+            continue;
+        }
+
+        const queryEnd = findQueryExpressionEnd(source, mask, depth, startIndex, queryDepth);
+        queryRanges.push({ start: startIndex, end: queryEnd, depth: queryDepth });
+
+        for (const clause of clauseMatches) {
+            if (clause.index <= startIndex || clause.index >= queryEnd || !sameCodeDepth(depth[clause.index], queryDepth)) {
+                continue;
+            }
+
+            const whitespaceStart = findWhitespaceStart(source, clause.index);
+            const whitespace = source.slice(whitespaceStart, clause.index);
+            const hasNewLine = /\r\n|\n|\r/.test(whitespace);
+            if (useNewLine && !hasNewLine) {
+                replacements.push({ start: whitespaceStart, end: clause.index, value: lineEnding });
+            } else if (!useNewLine && hasNewLine && canJoinQueryClauseLine(source, whitespaceStart)) {
+                replacements.push({ start: whitespaceStart, end: clause.index, value: " " });
+            }
+        }
+    }
+
+    return applyReplacements(source, replacements);
+}
+
+function canJoinQueryClauseLine(source: string, whitespaceStart: number): boolean {
+    const previousLineStart =
+        Math.max(source.lastIndexOf("\n", whitespaceStart - 1), source.lastIndexOf("\r", whitespaceStart - 1)) + 1;
+    return !source.slice(previousLineStart, whitespaceStart).includes("//");
+}
+
+interface CodeDepth {
+    readonly braces: number;
+    readonly parentheses: number;
+    readonly brackets: number;
+}
+
+function createCodeDepth(source: string, mask: readonly boolean[]): CodeDepth[] {
+    const result: CodeDepth[] = [];
+    let braces = 0;
+    let parentheses = 0;
+    let brackets = 0;
+
+    for (let index = 0; index < source.length; index++) {
+        result.push({ braces, parentheses, brackets });
+        if (!mask[index]) {
+            continue;
+        }
+
+        const character = source[index];
+        if (character === "{") {
+            braces++;
+        } else if (character === "}") {
+            braces--;
+        } else if (character === "(") {
+            parentheses++;
+        } else if (character === ")") {
+            parentheses--;
+        } else if (character === "[") {
+            brackets++;
+        } else if (character === "]") {
+            brackets--;
+        }
+    }
+
+    return result;
+}
+
+function looksLikeFromClause(source: string, startIndex: number): boolean {
+    return /^from\s+(?:(?:global::)?[A-Za-z_][\w.<>,?\[\]]*\s+)?[A-Za-z_]\w*\s+in\b/s.test(
+        source.slice(startIndex, startIndex + 200),
+    );
+}
+
+function findQueryExpressionEnd(
+    source: string,
+    mask: readonly boolean[],
+    depth: readonly CodeDepth[],
+    startIndex: number,
+    queryDepth: CodeDepth,
+): number {
+    for (let index = startIndex + 4; index < source.length; index++) {
+        if (!mask[index]) {
+            continue;
+        }
+
+        if (source[index] === ";" && sameCodeDepth(depth[index], queryDepth)) {
+            return index;
+        }
+        if (
+            (source[index] === ")" && depth[index].parentheses === queryDepth.parentheses) ||
+            (source[index] === "]" && depth[index].brackets === queryDepth.brackets) ||
+            (source[index] === "}" && depth[index].braces === queryDepth.braces)
+        ) {
+            return index;
+        }
+    }
+
+    return source.length;
+}
+
+function sameCodeDepth(left: CodeDepth, right: CodeDepth): boolean {
+    return (
+        left.braces === right.braces &&
+        left.parentheses === right.parentheses &&
+        left.brackets === right.brackets
+    );
 }
 
 function formatOpenBraceNewLines(
@@ -369,19 +958,19 @@ function formatForSemicolons(source: string, options: CSharpSpacingOptions): str
 }
 
 function formatCastSpacing(source: string, useSpace: boolean): string {
-    const castPattern = /\(((?:global::)?(?:[A-Za-z_][\w]*\.)*[A-Za-z_][\w]*(?:<[^(){};]+>)?(?:[?*]|\[\])?)\)[ \t]*/g;
     const mask = createCodeMask(source);
     const replacements: Array<{ start: number; end: number; value: string }> = [];
 
-    for (const match of source.matchAll(castPattern)) {
-        if (!isMatchInCode(match[0], match.index, mask) || !isLikelyCastType(match[1])) {
+    for (const pair of findParenthesisPairs(source, mask)) {
+        if (!isCastParenthesis(source, pair)) {
             continue;
         }
 
+        const whitespaceEnd = findHorizontalWhitespaceEnd(source, pair.closingIndex + 1);
         replacements.push({
-            start: match.index,
-            end: match.index + match[0].length,
-            value: `${match[0].trimEnd()}${useSpace ? " " : ""}`,
+            start: pair.closingIndex + 1,
+            end: whitespaceEnd,
+            value: /\r|\n/.test(source[whitespaceEnd] ?? "") ? "" : useSpace ? " " : "",
         });
     }
 
@@ -686,6 +1275,14 @@ function findWhitespaceStart(source: string, index: number): number {
     let cursor = index;
     while (cursor > 0 && /\s/.test(source[cursor - 1])) {
         cursor--;
+    }
+    return cursor;
+}
+
+function findWhitespaceEnd(source: string, index: number): number {
+    let cursor = index;
+    while (cursor < source.length && /\s/.test(source[cursor])) {
+        cursor++;
     }
     return cursor;
 }

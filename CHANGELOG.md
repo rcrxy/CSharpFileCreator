@@ -1,6 +1,8 @@
-## [0.0.2] - 2026-09-04
+## [0.1.0] - 2026-09-04
 
 - Add length-aware Razor and HTML attribute wrapping with `html_attribute_wrap = normal`.
+- Apply `html_attribute_style` and `html_attribute_indent` after a normalized opening tag exceeds `max_line_length`.
+- Preserve `do_not_touch`, recover multiline tags that fit on one line, and measure indentation using visual tab width.
 - Document supported and parsed-only HTML attribute wrapping policies.
 
 ## [Unreleased]

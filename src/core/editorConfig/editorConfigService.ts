@@ -9,6 +9,7 @@ import type {
     CSharpLabelIndentation,
     CSharpNewLineOptions,
     CSharpOpenBraceContext,
+    CSharpParenthesisSpacingContext,
     CSharpSpacingOptions,
     CSharpWrappingOptions,
     EditorConfigFallback,
@@ -255,12 +256,30 @@ const csharpOpenBraceContexts = new Set<CSharpOpenBraceContext>([
     "types",
 ]);
 
+const csharpParenthesisSpacingContexts = new Set<CSharpParenthesisSpacingContext>([
+    "control_flow_statements",
+    "expressions",
+    "type_casts",
+]);
+
 export function resolveCSharpNewLineOptions(properties: Readonly<Props>): CSharpNewLineOptions {
     return {
         beforeOpenBrace: resolveOpenBraceContexts(properties.csharp_new_line_before_open_brace),
         beforeElse: resolveCustomBoolean(properties.csharp_new_line_before_else, true),
         beforeCatch: resolveCustomBoolean(properties.csharp_new_line_before_catch, true),
         beforeFinally: resolveCustomBoolean(properties.csharp_new_line_before_finally, true),
+        beforeMembersInObjectInitializers: resolveCustomBoolean(
+            properties.csharp_new_line_before_members_in_object_initializers,
+            true,
+        ),
+        beforeMembersInAnonymousTypes: resolveCustomBoolean(
+            properties.csharp_new_line_before_members_in_anonymous_types,
+            true,
+        ),
+        betweenQueryExpressionClauses: resolveCustomBoolean(
+            properties.csharp_new_line_between_query_expression_clauses,
+            true,
+        ),
     };
 }
 
@@ -275,6 +294,31 @@ export function resolveCSharpSpacingOptions(properties: Readonly<Props>): CSharp
         afterCast: resolveCustomBoolean(properties.csharp_space_after_cast, false),
         beforeInheritanceColon: resolveCustomBoolean(properties.csharp_space_before_colon_in_inheritance_clause, true),
         afterInheritanceColon: resolveCustomBoolean(properties.csharp_space_after_colon_in_inheritance_clause, true),
+        betweenMethodCallNameAndOpeningParenthesis: resolveCustomBoolean(
+            properties.csharp_space_between_method_call_name_and_opening_parenthesis,
+            false,
+        ),
+        betweenMethodCallParameterListParentheses: resolveCustomBoolean(
+            properties.csharp_space_between_method_call_parameter_list_parentheses,
+            false,
+        ),
+        betweenMethodCallEmptyParameterListParentheses: resolveCustomBoolean(
+            properties.csharp_space_between_method_call_empty_parameter_list_parentheses,
+            false,
+        ),
+        betweenMethodDeclarationNameAndOpeningParenthesis: resolveCustomBoolean(
+            properties.csharp_space_between_method_declaration_name_and_open_parenthesis,
+            false,
+        ),
+        betweenMethodDeclarationParameterListParentheses: resolveCustomBoolean(
+            properties.csharp_space_between_method_declaration_parameter_list_parentheses,
+            false,
+        ),
+        betweenMethodDeclarationEmptyParameterListParentheses: resolveCustomBoolean(
+            properties.csharp_space_between_method_declaration_empty_parameter_list_parentheses,
+            false,
+        ),
+        betweenParentheses: resolveParenthesisSpacingContexts(properties.csharp_space_between_parentheses),
     };
 }
 
@@ -463,6 +507,22 @@ function resolveOpenBraceContexts(value: unknown): CSharpNewLineOptions["beforeO
     }
 
     return contexts.size > 0 ? contexts : "all";
+}
+
+function resolveParenthesisSpacingContexts(value: unknown): ReadonlySet<CSharpParenthesisSpacingContext> {
+    if (typeof value !== "string") {
+        return new Set();
+    }
+
+    const contexts = new Set<CSharpParenthesisSpacingContext>();
+    for (const item of value.toLowerCase().split(",")) {
+        const context = item.trim() as CSharpParenthesisSpacingContext;
+        if (csharpParenthesisSpacingContexts.has(context)) {
+            contexts.add(context);
+        }
+    }
+
+    return contexts;
 }
 
 function resolveBinaryOperatorSpacing(value: unknown): CSharpBinaryOperatorSpacing {

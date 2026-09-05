@@ -48,6 +48,10 @@ describe("Razor tag formatting", () => {
     });
 
     it("wraps normal attributes only after the visual line limit is exceeded", () => {
+        assert.equal(
+            format('<Widget A="1" B="2" />', { attributeWrap: "normal", maxLineLength: 23 }),
+            '<Widget A="1" B="2" />',
+        );
         assert.equal(format('<Widget A="1" B="2" />', { attributeWrap: "normal", maxLineLength: 22 }), '<Widget A="1" B="2" />');
         assert.equal(
             format('<Widget A="1" B="2" />', { attributeWrap: "normal", maxLineLength: 21, attributeStyle: "on_different_lines" }),
@@ -67,8 +71,18 @@ describe("Razor tag formatting", () => {
 
     it("accounts for indentation and tabs when wrapping", () => {
         assert.equal(
+            format('   <Widget A="1" B="2" />', {
+                attributeWrap: "normal",
+                attributeStyle: "on_different_lines",
+                maxLineLength: 24,
+                indentation: { style: "space", size: 3, tabWidth: 3 },
+            }),
+            '   <Widget\n      A="1"\n      B="2" />',
+        );
+        assert.equal(
             format('\t<Widget A="1" B="2" />', {
                 attributeWrap: "normal",
+                attributeStyle: "on_different_lines",
                 maxLineLength: 25,
                 indentation: { style: "tab", size: 4, tabWidth: 4 },
             }),
@@ -90,10 +104,70 @@ describe("Razor tag formatting", () => {
         assert.equal(format(once, { attributeWrap: "normal", maxLineLength: undefined }), once);
     });
 
-    it("parses but does not apply unsupported wrap policies", () => {
+    it("does not apply length behavior for unsupported wrap policies", () => {
         const source = '<Widget A="1" B="2" />';
-        assert.equal(format(source, { attributeWrap: "on_every_item", maxLineLength: 1 }), source);
-        assert.equal(format(source, { attributeWrap: "split_into_lines", maxLineLength: 1 }), source);
+        const expected = '<Widget\n    A="1"\n    B="2" />';
+        const options: Partial<HtmlFormattingOptions> = { attributeStyle: "on_different_lines", maxLineLength: 1 };
+        assert.equal(format(source, { ...options, attributeWrap: "on_every_item" }), expected);
+        assert.equal(format(source, { ...options, attributeWrap: "split_into_lines" }), expected);
+    });
+
+    it("applies each attribute style after normal wrapping is triggered", () => {
+        const source = '<Widget A="1" B="2" C="3" />';
+        const options: Partial<HtmlFormattingOptions> = { attributeWrap: "normal", maxLineLength: 20 };
+        assert.equal(format(source, { ...options, attributeStyle: "on_single_line" }), '<Widget\n    A="1" B="2" C="3" />');
+        assert.equal(
+            format(source, { ...options, attributeStyle: "first_attribute_on_single_line" }),
+            '<Widget A="1"\n    B="2"\n    C="3" />',
+        );
+        assert.equal(
+            format(source, { ...options, attributeStyle: "on_different_lines" }),
+            '<Widget\n    A="1"\n    B="2"\n    C="3" />',
+        );
+    });
+
+    it("formats the Radzen normal-wrap scenario with three-column alignment", () => {
+        const shortTag = '<RadzenButton Text="确定" Click="@Save" >';
+        const longTag =
+            '<RadzenDataGrid Data="@stores" AllowFiltering="true" AllowColumnResize="true" AllowSorting="true" PageSize="5" AllowPaging="true" >';
+        const options: Partial<HtmlFormattingOptions> = {
+            attributeWrap: "normal",
+            attributeStyle: "first_attribute_on_single_line",
+            attributeIndent: "align_by_first_attribute",
+            indentation: { style: "space", size: 3, tabWidth: 3 },
+            maxLineLength: 120,
+            spaceAfterLastAttribute: true,
+        };
+        assert.equal(format(shortTag, options), shortTag);
+        assert.equal(
+            format(longTag, options),
+            '<RadzenDataGrid Data="@stores"\n' +
+                '                AllowFiltering="true"\n' +
+                '                AllowColumnResize="true"\n' +
+                '                AllowSorting="true"\n' +
+                '                PageSize="5"\n' +
+                '                AllowPaging="true" >',
+        );
+    });
+
+    it("preserves do-not-touch line structure under normal wrapping", () => {
+        const source = '<Widget\n    A = "1"\n        B = "2"\n>';
+        assert.equal(
+            format(source, { attributeWrap: "normal", attributeStyle: "do_not_touch", maxLineLength: 1 }),
+            '<Widget\n    A="1"\n        B="2"\n>',
+        );
+    });
+
+    it("keeps Razor directive attributes intact and remains idempotent", () => {
+        const source = '<Widget @onclick="Handle" @bind-Value="Value" @attributes="Attributes" />';
+        const options: Partial<HtmlFormattingOptions> = {
+            attributeWrap: "normal",
+            attributeStyle: "on_different_lines",
+            maxLineLength: 30,
+        };
+        const once = format(source, options);
+        assert.equal(once, '<Widget\n    @onclick="Handle"\n    @bind-Value="Value"\n    @attributes="Attributes" />');
+        assert.equal(format(once, options), once);
     });
 
     it("supports different-lines attribute layout and all indent modes", () => {
@@ -170,6 +244,26 @@ describe("Razor tag formatting", () => {
             format('<Widget @onclick="Handle" Visible="@(count > 0)" @attributes="Attributes"/>'),
             '<Widget @onclick="Handle" Visible="@(count > 0)" @attributes="Attributes" />',
         );
+    });
+
+    it("keeps C# string literals inside Razor expression attributes intact when wrapping", () => {
+        const source =
+            '<RadzenIcon Icon="@(store.IsEnabled ? "check_circle" : "cancel")" Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />';
+        const options: Partial<HtmlFormattingOptions> = {
+            attributeWrap: "normal",
+            attributeStyle: "on_different_lines",
+            attributeIndent: "double_indent",
+            indentation: { style: "space", size: 3, tabWidth: 3 },
+            maxLineLength: 80,
+        };
+        const expected =
+            "<RadzenIcon\n" +
+            '      Icon="@(store.IsEnabled ? "check_circle" : "cancel")"\n' +
+            '      Style="@(store.IsEnabled ? "color: var(--rz-success);" : "color: var(--rz-danger);")" />';
+
+        const result = format(source, options);
+        assert.equal(result, expected);
+        assert.equal(format(result, options), expected);
     });
 
     it("handles declarations, comments, boolean attributes, unquoted values, and incomplete tags safely", () => {
