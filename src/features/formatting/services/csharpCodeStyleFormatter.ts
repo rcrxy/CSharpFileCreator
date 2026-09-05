@@ -1071,7 +1071,12 @@ function isUnaryOrNonBinaryOperator(source: string, index: number, operator: str
     if ((operator === "+" || operator === "-") && (previous === operator || next === operator)) {
         return true;
     }
-    if ((operator === "<" || operator === ">") && /[A-Za-z0-9_]/.test(previous) && /[A-Za-z_]/.test(next)) {
+    const canEndGenericCall = operator === ">" && next === "(";
+    if (
+        (operator === "<" || operator === ">") &&
+        /[A-Za-z0-9_]/.test(previous) &&
+        (/[A-Za-z_]/.test(next) || canEndGenericCall)
+    ) {
         return looksLikeGenericAngleBracket(source, index, operator);
     }
 

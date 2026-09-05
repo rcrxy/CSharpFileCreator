@@ -333,9 +333,11 @@ describe("C# code-style formatting", () => {
     });
 
     it("formats binary operators without changing unary operators or generic arguments", () => {
-        const source = "List<string> values = left+right*2; value=-value; index++; if(a<b&&b>c&&a<=c&&b!=c) { }";
+        const source =
+            "List<string> values = GetRequiredService<HomeViewModel>(); value = left+right*2; value=-value; index++; if(a<b&&b>c&&a<=c&&b!=c) { }";
         const spaced = format(source);
         assert.match(spaced, /List<string>/);
+        assert.match(spaced, /GetRequiredService<HomeViewModel>\(\)/);
         assert.match(spaced, /left \+ right \* 2/);
         assert.match(spaced, /value=-value/);
         assert.match(spaced, /index\+\+/);
