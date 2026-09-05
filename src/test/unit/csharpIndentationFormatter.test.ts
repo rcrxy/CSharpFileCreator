@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CSharpIndentationOptions } from "../../core/editorConfig";
+import { wrapCSharpLines } from "../../features/formatting/services/csharpCodeStyleFormatter";
 import { formatCSharpIndentation } from "../../features/formatting/services/csharpIndentationFormatter";
 
 const indentationOptions: CSharpIndentationOptions = {
@@ -86,5 +87,41 @@ describe("C# embedded statement indentation", () => {
         assert.match(result, /^        \/\/ explanation$/m);
         assert.match(result, /^        Work\(\);$/m);
         assert.match(result, /^    Continue\(\);$/m);
+    });
+
+    it("indents multiline method arguments and restores the closing delimiter", () => {
+        const source = [
+            "void Run()",
+            "{",
+            "var dialog = DialogService.OpenAsync<StoreEditDialog>(",
+            '"新建店铺", parameters: null,',
+            'options: new DialogOptions { Width = "420px" });',
+            "retry:",
+            "Continue();",
+            "}",
+        ].join("\n");
+
+        const result = format(source);
+        assert.match(result, /^        "新建店铺", parameters: null,$/m);
+        assert.match(result, /^        options: new DialogOptions \{ Width = "420px" \}\);$/m);
+        assert.match(result, /^retry:$/m);
+        assert.match(result, /^    Continue\(\);$/m);
+    });
+
+    it("keeps automatically wrapped named arguments stable across formatting passes", () => {
+        const source = [
+            "void Run()",
+            "{",
+            'var dialog = DialogService.OpenAsync<StoreEditDialog>("新建店铺", parameters: null, options: new DialogOptions { Width = "420px" });',
+            "}",
+        ].join("\n");
+        const indentation = { style: "space" as const, size: 4, tabWidth: 4 };
+        const formatAndWrap = (value: string) => wrapCSharpLines(format(value), 90, indentation);
+
+        const once = formatAndWrap(source);
+        const twice = formatAndWrap(once);
+
+        assert.match(once, /^        options: new DialogOptions \{ Width = "420px" \}\);$/m);
+        assert.equal(twice, once);
     });
 });
