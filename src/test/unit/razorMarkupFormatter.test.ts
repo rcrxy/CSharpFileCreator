@@ -41,12 +41,12 @@ const csharpNewLines: CSharpNewLineOptions = {
     betweenQueryExpressionClauses: false,
 };
 
-function format(
+async function format(
     source: string,
     overrides: Partial<HtmlFormattingOptions> = {},
-    formatCSharp?: (source: string) => string,
+    formatCSharp?: (source: string) => string | Promise<string>,
     csharpIndentationOverrides: Partial<CSharpIndentationOptions> = {},
-): string {
+): Promise<string> {
     const resolvedHtml = { ...html, ...overrides };
     return formatRazorMarkup(source, {
         indentation: resolvedHtml.indentation,
@@ -57,16 +57,16 @@ function format(
         insertFinalNewline: false,
         trimTrailingWhitespace: true,
         charset: "utf-8",
-        formatCSharp,
+        formatCSharp: formatCSharp ? async value => formatCSharp(value) : undefined,
     });
 }
 
 describe("Razor markup formatting pipeline", () => {
-    it("uses HTML-specific indentation for nested tags", () => {
-        assert.equal(format("<div><span>Value</span></div>"), "<div>\n  <span>Value</span>\n</div>");
+    it("uses HTML-specific indentation for nested tags", async () => {
+        assert.equal(await format("<div><span>Value</span></div>"), "<div>\n  <span>Value</span>\n</div>");
     });
 
-    it("preserves align-by-first-attribute indentation after nesting tags", () => {
+    it("preserves align-by-first-attribute indentation after nesting tags", async () => {
         const source = [
             '<div class="store-index">',
             '<RadzenDataGrid AllowFiltering="true" AllowColumnResize="true" AllowAlternatingRows="false">',
@@ -76,7 +76,7 @@ describe("Razor markup formatting pipeline", () => {
             "</RadzenDataGrid>",
             "</div>",
         ].join("\n");
-        const result = format(source, {
+        const result = await format(source, {
             indentation: { style: "space", size: 4, tabWidth: 4 },
             attributeStyle: "first_attribute_on_single_line",
             attributeIndent: "align_by_first_attribute",
@@ -92,7 +92,7 @@ describe("Razor markup formatting pipeline", () => {
         assert.match(result, /^<div class="store-index" >$/m);
     });
 
-    it("normalizes previously misaligned multiline attributes without reusing old parent indentation", () => {
+    it("normalizes previously misaligned multiline attributes without reusing old parent indentation", async () => {
         const source = [
             '<div class="store-index" >',
             '   <RadzenDataGrid AllowFiltering="true"',
@@ -106,7 +106,7 @@ describe("Razor markup formatting pipeline", () => {
             "   </RadzenDataGrid>",
             "</div>",
         ].join("\n");
-        const result = format(source, {
+        const result = await format(source, {
             indentation: { style: "space", size: 3, tabWidth: 3 },
             attributeStyle: "first_attribute_on_single_line",
             attributeIndent: "align_by_first_attribute",
@@ -121,7 +121,7 @@ describe("Razor markup formatting pipeline", () => {
         assert.match(result, /^                               Frozen="true" \/>$/m);
     });
 
-    it("preserves Razor expression strings while wrapping attributes in nested component templates", () => {
+    it("preserves Razor expression strings while wrapping attributes in nested component templates", async () => {
         const source = [
             "<Columns>",
             '<RadzenDataGridColumn Property="@nameof(StoreEntity.IsEnabled)" Title="启用状态" Frozen="true" Width="100px">',
@@ -154,24 +154,24 @@ describe("Razor markup formatting pipeline", () => {
             "</Columns>",
         ].join("\n");
 
-        const result = format(source, options);
+        const result = await format(source, options);
         assert.equal(result, expected);
-        assert.equal(format(result, options), expected);
+        assert.equal(await format(result, options), expected);
     });
 
-    it("does not indent or normalize configured protected element contents", () => {
+    it("does not indent or normalize configured protected element contents", async () => {
         const source =
             "<div>\n<pre>  first   value\n    second </pre>\n<textarea> third   value </textarea>\n<span>After</span>\n</div>";
-        const result = format(source);
+        const result = await format(source);
         assert.match(result, /<pre>  first   value\n    second <\/pre>/);
         assert.match(result, /<textarea> third   value <\/textarea>/);
         assert.match(result, /^  <span>After<\/span>$/m);
     });
 
-    it("protects Razor C# generics from tag formatting and then invokes the C# formatter", () => {
+    it("protects Razor C# generics from tag formatting and then invokes the C# formatter", async () => {
         let received = "";
         const source = "<div><span>Value</span></div>\n@code {\nList<string> values = new();\nif (count > 0)\nUse(values);\n}";
-        const result = format(source, {}, csharpSource => {
+        const result = await format(source, {}, csharpSource => {
             received = csharpSource;
             return csharpSource.replace("Use(values);", "    Use(values);");
         });
@@ -182,14 +182,14 @@ describe("Razor markup formatting pipeline", () => {
         assert.match(result, /\n      Use\(values\);\n}/);
     });
 
-    it("supports multiple Razor C# blocks without mixing protected values", () => {
+    it("supports multiple Razor C# blocks without mixing protected values", async () => {
         const source = "@code {\nList<string> first = new();\n}\n<div></div>\n@functions {\nList<int> second = new();\n}";
-        const result = format(source, {}, value => value);
+        const result = await format(source, {}, value => value);
         assert.match(result, /List<string> first/);
         assert.match(result, /List<int> second/);
     });
 
-    it("indents inline Razor statement bodies and their first C# lines", () => {
+    it("indents inline Razor statement bodies and their first C# lines", async () => {
         const source = [
             "<div>",
             "@if (enabled)",
@@ -201,7 +201,7 @@ describe("Razor markup formatting pipeline", () => {
         ].join("\n");
 
         assert.equal(
-            format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }),
+            await format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }),
             [
                 "<div>",
                 "   @if (enabled) {",
@@ -213,7 +213,7 @@ describe("Razor markup formatting pipeline", () => {
         );
     });
 
-    it("preserves single-line Razor if blocks without losing the surrounding markup depth", () => {
+    it("preserves single-line Razor if blocks without losing the surrounding markup depth", async () => {
         const source = [
             "<div>",
             '@if (showIcon) { <RadzenIcon Icon="check_circle" /> }',
@@ -223,7 +223,7 @@ describe("Razor markup formatting pipeline", () => {
         ].join("\n");
 
         assert.equal(
-            format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }),
+            await format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }),
             [
                 "<div>",
                 '   @if (showIcon) { <RadzenIcon Icon="check_circle" /> }',
@@ -234,18 +234,18 @@ describe("Razor markup formatting pipeline", () => {
         );
     });
 
-    it("respects csharp_indent_block_contents for Razor control blocks", () => {
+    it("respects csharp_indent_block_contents for Razor control blocks", async () => {
         const source = ["<div>", "@if (enabled)", "{", "var value = 1;", "<span>Value</span>", "}", "</div>"].join("\n");
 
         assert.equal(
-            format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }, undefined, {
+            await format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } }, undefined, {
                 indentBlockContents: false,
             }),
             ["<div>", "   @if (enabled) {", "   var value = 1;", "   <span>Value</span>", "   }", "</div>"].join("\n"),
         );
     });
 
-    it("formats chained and other Razor control blocks with the configured brace rules", () => {
+    it("formats chained and other Razor control blocks with the configured brace rules", async () => {
         const source = [
             "<div>",
             "@if (first)",
@@ -315,14 +315,14 @@ describe("Razor markup formatting pipeline", () => {
             "   } while (pending);",
             "</div>",
         ].join("\n");
-        const result = format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } });
+        const result = await format(source, { indentation: { style: "space", size: 3, tabWidth: 3 } });
 
         assert.equal(result, expected);
-        assert.equal(format(result, { indentation: { style: "space", size: 3, tabWidth: 3 } }), expected);
+        assert.equal(await format(result, { indentation: { style: "space", size: 3, tabWidth: 3 } }), expected);
     });
 
-    it("normalizes output to the configured line ending", () => {
-        const result = formatRazorMarkup("<div>\r\n<span>Value</span>\r\n</div>\r\n", {
+    it("normalizes output to the configured line ending", async () => {
+        const result = await formatRazorMarkup("<div>\r\n<span>Value</span>\r\n</div>\r\n", {
             indentation: html.indentation,
             html,
             lineEnding: "\r\n",

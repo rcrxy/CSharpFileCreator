@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
 import { resolveEditorConfig, type EditorConfigFallback } from "../../../core/editorConfig";
-import type { CSharpCodeFormatter } from "../csharpCodeFormatter";
+import {
+    applyCSharpTextChanges,
+    createCSharpFormattingOptions,
+    type CSharpFormattingBackend,
+} from "../csharpFormattingBackend";
 import { formatRazorMarkup } from "../services/razorMarkupFormatter";
 
 export class RazorDocumentFormattingProvider
@@ -8,7 +12,7 @@ export class RazorDocumentFormattingProvider
 {
     constructor(
         private readonly log: vscode.LogOutputChannel,
-        private readonly csharpFormatter?: CSharpCodeFormatter,
+        private readonly csharpBackend?: CSharpFormattingBackend,
     ) {}
 
     async provideDocumentFormattingEdits(
@@ -34,13 +38,7 @@ export class RazorDocumentFormattingProvider
         options: vscode.FormattingOptions,
         token: vscode.CancellationToken,
     ): Promise<vscode.TextEdit[]> {
-        return this.provideFullDocumentFormattingEdits(
-            document,
-            options,
-            token,
-            "ranges",
-            `count=${ranges.length}`,
-        );
+        return this.provideFullDocumentFormattingEdits(document, options, token, "ranges", `count=${ranges.length}`);
     }
 
     private async provideFullDocumentFormattingEdits(
@@ -60,24 +58,48 @@ export class RazorDocumentFormattingProvider
             }
 
             const source = document.getText();
-            const formatted = formatRazorMarkup(source, {
-                indentation: editorConfig.html.indentation,
-                csharpIndentation: editorConfig.csharpIndentation,
-                csharpNewLines: editorConfig.csharpNewLines,
-                html: editorConfig.html,
-                lineEnding: editorConfig.lineEnding,
-                insertFinalNewline: editorConfig.insertFinalNewline,
-                trimTrailingWhitespace: editorConfig.trimTrailingWhitespace,
-                charset: editorConfig.charset,
-                formatCSharp: this.csharpFormatter
-                    ? csharpSource => this.csharpFormatter!.formatText(csharpSource, editorConfig)
-                    : undefined,
-            });
+            const controller = new AbortController();
+            const cancellationSubscription = token.onCancellationRequested(() => controller.abort());
+            let formatted: string;
+
+            try {
+                formatted = await formatRazorMarkup(source, {
+                    indentation: editorConfig.html.indentation,
+                    csharpIndentation: editorConfig.csharpIndentation,
+                    csharpNewLines: editorConfig.csharpNewLines,
+                    html: editorConfig.html,
+                    lineEnding: editorConfig.lineEnding,
+                    insertFinalNewline: editorConfig.insertFinalNewline,
+                    trimTrailingWhitespace: editorConfig.trimTrailingWhitespace,
+                    charset: editorConfig.charset,
+                    formatCSharp: this.csharpBackend
+                        ? async csharpSource => {
+                              const result = await this.csharpBackend!.format({
+                                  source: csharpSource,
+                                  kind: "snippet",
+                                  snippetKind: "type-members",
+                                  options: createCSharpFormattingOptions(editorConfig),
+                                  signal: controller.signal,
+                              });
+                              return applyCSharpTextChanges(csharpSource, result.changes);
+                          }
+                        : undefined,
+                });
+            } finally {
+                cancellationSubscription.dispose();
+            }
+
+            if (token.isCancellationRequested) {
+                this.log.info(`Razor formatting cancelled: ${document.uri.toString()} (trigger=${trigger}).`);
+                return [];
+            }
+
             const changed = formatted !== source;
 
             this.log.info(
                 `Razor formatting completed: ${document.uri.toString()} ` +
-                    `(trigger=${trigger}, changed=${changed}, duration=${formatElapsedTime(startedAt)}, ` +
+                    `(trigger=${trigger}, csharpBackend=${this.csharpBackend?.kind ?? "none"}, ` +
+                    `changed=${changed}, duration=${formatElapsedTime(startedAt)}, ` +
                     `inputChars=${source.length}, outputChars=${formatted.length}` +
                     `${requestedRanges ? `, request=${requestedRanges}` : ""}).`,
             );
@@ -89,6 +111,11 @@ export class RazorDocumentFormattingProvider
             const documentRange = new vscode.Range(document.positionAt(0), document.positionAt(source.length));
             return [vscode.TextEdit.replace(documentRange, formatted)];
         } catch (error) {
+            if (token.isCancellationRequested) {
+                this.log.info(`Razor formatting cancelled: ${document.uri.toString()} (trigger=${trigger}).`);
+                return [];
+            }
+
             this.log.error(`Razor formatting failed: ${document.uri.toString()} (trigger=${trigger}).`, error);
             throw error;
         }

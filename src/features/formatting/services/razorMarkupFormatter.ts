@@ -18,7 +18,7 @@ export interface RazorFormattingOptions {
     readonly trimTrailingWhitespace: boolean;
     readonly charset: Charset;
     readonly html: HtmlFormattingOptions;
-    readonly formatCSharp?: (source: string) => string;
+    readonly formatCSharp?: (source: string) => Promise<string>;
 }
 
 const voidElementNames = new Set([
@@ -79,14 +79,14 @@ interface RazorContinuation {
     readonly opensBlock: boolean;
 }
 
-export function formatRazorMarkup(source: string, options: RazorFormattingOptions): string {
+export async function formatRazorMarkup(source: string, options: RazorFormattingOptions): Promise<string> {
     const protectedCodeBlocks = protectRazorCodeBlocks(source);
     const sourceWithFormattedTags = restoreRazorCodeBlocks(
         formatRazorTags(protectedCodeBlocks.source, options.html, options.lineEnding),
         protectedCodeBlocks.values,
     );
     const sourceWithFormattedCSharp = options.formatCSharp
-        ? formatRazorCodeBlocks(sourceWithFormattedTags, options.indentation, options.formatCSharp)
+        ? await formatRazorCodeBlocks(sourceWithFormattedTags, options.indentation, options.formatCSharp)
         : sourceWithFormattedTags;
     const separators = sourceWithFormattedCSharp.match(/\r\n|\n|\r/g) ?? [];
     const lines = sourceWithFormattedCSharp.split(/\r\n|\n|\r/);
@@ -141,11 +141,11 @@ function restoreRazorCodeBlocks(source: string, values: readonly string[]): stri
     return source.replace(/\uE100(\d+)\uE101/g, (_, index: string) => values[Number.parseInt(index, 10)] ?? "");
 }
 
-function formatRazorCodeBlocks(
+async function formatRazorCodeBlocks(
     source: string,
     indentation: IndentationOptions,
-    formatCSharp: (source: string) => string,
-): string {
+    formatCSharp: (source: string) => Promise<string>,
+): Promise<string> {
     const lineEnding = source.includes("\r\n") ? "\r\n" : "\n";
     const lines = source.split(/\r\n|\n|\r/);
     const indentUnit = indentation.style === "tab" ? "\t" : " ".repeat(indentation.size);
@@ -180,7 +180,7 @@ function formatRazorCodeBlocks(
 
         const baseIndent = getLeadingWhitespace(lines[directiveLine]);
         const csharpSource = lines.slice(openingLine + 1, closingLine).join(lineEnding);
-        const formattedCSharp = formatCSharp(csharpSource).split(/\r\n|\n|\r/);
+        const formattedCSharp = (await formatCSharp(csharpSource)).split(/\r\n|\n|\r/);
         const indentedCSharp = formattedCSharp.map(line => {
             return line.trim().length === 0 ? "" : baseIndent + indentUnit + line;
         });

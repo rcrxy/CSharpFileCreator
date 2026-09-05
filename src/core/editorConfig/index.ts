@@ -18,6 +18,7 @@ export type {
     CSharpLabelIndentation,
     CSharpNewLineOptions,
     CSharpOpenBraceContext,
+    CSharpParenthesisSpacingContext,
     CSharpSpacingOptions,
     CSharpWrappingOptions,
     EditorConfigFallback,
