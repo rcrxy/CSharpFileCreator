@@ -1,6 +1,7 @@
 .vscode/**
 .vscode-test/**
 src/**
+roslyn/**
 !src/features/fileCreation/templates/**
 !src/core/editorConfig/profiles/**
 .gitignore

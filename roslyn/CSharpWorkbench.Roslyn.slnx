@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CSharpWorkbench.Roslyn.Core/CSharpWorkbench.Roslyn.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CSharpWorkbench.Roslyn.Core.Tests/CSharpWorkbench.Roslyn.Core.Tests.csproj" />
+  </Folder>
+</Solution>
